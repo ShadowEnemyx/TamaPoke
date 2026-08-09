@@ -775,7 +775,6 @@ uint8_t Pet::interactPet(bool eveningBonus) {
   if (ceremony != CER_NONE || isEgg() || sleeping) return PET_INTERACT_NONE;
   uint32_t nowMinute = ageMinutes ? ageMinutes : 1;
   if (lastPetInteractMinute && nowMinute < lastPetInteractMinute + 10) {
-    heartUntil = millis() + HEART_MS;
     return PET_INTERACT_NONE;
   }
   lastPetInteractMinute = nowMinute;

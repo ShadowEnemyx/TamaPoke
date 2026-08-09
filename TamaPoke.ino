@@ -27,7 +27,7 @@
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "1.29.1-memo-guide"
+#define FW_VERSION "1.29.2-memo-layout"
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
 
@@ -1156,13 +1156,16 @@ void onTap(int16_t x, int16_t y) {
   if (inPetZone(x, y)) {
     Serial.println("PET");
     uint8_t r = pet.interactPet(currentDayPhase() == 2);
+    // Der Spezies-Chirp ist direkte Rueckmeldung fuer jeden Pet-Tap. Er darf
+    // nicht von der zehnminuetigen Pflege-Belohnung abhaengen.
+    if (!pet.sleeping && audioMode() == SOUND_FULL) speciesChirpPlay(pet.speciesId);
+    if (r == PET_INTERACT_NONE) return;
     StrId msg = S_WAIT;
     if (r & PET_INTERACT_BOND) msg = S_BOND_GAIN;
     else if (r & PET_INTERACT_JOY) msg = S_HAPPY_FB;
     snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(msg));
     petEventFeedbackUntil = millis() + 1600;
     if (!pet.sleeping) sfxPlay((r & PET_INTERACT_BOND) ? SFX_HEART : SFX_TAP);
-    if (r != PET_INTERACT_NONE && audioMode() == SOUND_FULL) speciesChirpPlay(pet.speciesId);
   }
 }
 
@@ -1409,7 +1412,6 @@ void render() {
     snprintf(name, sizeof(name), T(S_NAME_FMT), pet.shiny ? "*" : "", base, pet.level());
     drawHeader(name, gNight ? UI_INK_NIGHT : d.accent, statusMsg());
     drawStreakBadge();
-    drawCollectionFrame(CX, PET_GROUND - 96, 106, pet.collectionFrame);
     drawPet();
     drawBath();
     drawPoops();
@@ -2165,9 +2167,13 @@ void renderMemoGame() {
   if (memoFailUntil) snprintf(phase, sizeof(phase), "%s", T(S_MEMO_WRONG));
   else if (memoShowing) snprintf(phase, sizeof(phase), "%s", T(S_MEMO_WATCH));
   else snprintf(phase, sizeof(phase), T(S_MEMO_TURN_FMT), memoInput + 1, memoLen);
+  // Freier Streifen zwischen den oberen und unteren Pads: dadurch bleibt die
+  // Anleitung auf dem runden Display klar lesbar und liegt nicht auf Farben.
+  gfx->fillRoundRect(78, 230, 310, 24, 7, night ? UI_BG_NIGHT : UI_BG_DAY);
+  gfx->drawRoundRect(78, 230, 310, 24, 7, ink);
   gfx->setTextColor(memoFailUntil ? UI_BAR_BAD : (memoShowing ? UI_BAR_WARN : UI_BAR_OK));
   gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(phase) * 6, 112);
+  gfx->setCursor(CX - (int)strlen(phase) * 6, 234);
   gfx->print(phase);
   gfx->flush();
 }

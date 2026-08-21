@@ -20,3 +20,6 @@ PROJEKT_KONTEXT.md
 # Firmware is published through the web installer and GitHub Releases.
 # Track only the active installer parts deliberately; ignore every local build.
 web/firmware/tamapoke-*.bin
+
+# Local GitHub login leftover; never commit.
+.gh-auth/

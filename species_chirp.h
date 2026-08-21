@@ -20,10 +20,10 @@ struct SpeciesChirpNote {
 };
 
 struct SpeciesChirpProfile {
-  SpeciesChirpNote notes[3];
+  SpeciesChirpNote notes[4];
   uint8_t count;
 };
 
-// Liefert fuer jede Kanto-Dexnummer ein eigenes, begrenztes Syntheseprofil.
+// Liefert fuer jede Kanto-Dexnummer einen eigenen, melodischen Synthese-Ruf.
 // Ungueltige Dexnummern liefern false und erzeugen nie Audio.
 bool speciesChirpProfile(int16_t dex, SpeciesChirpProfile *out);

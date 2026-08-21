@@ -1,0 +1,250 @@
+# TamaPoke Expanded - AI Handoff
+
+Stand: 2026-08-21
+
+## Projekt und Hardware
+
+Dieses Repository ist eine stark erweiterte, community-orientierte Firmware fuer
+das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
+`socquique/TamaPoke` und wird als "Expanded"-Variante gepflegt.
+
+- Firmware-Entry-Point: `TamaPoke.ino`
+- Aktueller lokaler Firmware-Stand: `1.32.0-evo-cta`
+- Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
+  PCF85063 RTC, AXP2101 PMU, ES8311 Audio
+- Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
+  Font-Gruenden weitgehend ASCII ohne Umlaute/Akzente.
+
+Die Firmware speichert den Spielstand in ESP32-NVS. Bei einem Update darf der
+Installer **nicht** mit `Erase device` ausgefuehrt werden, sonst wird der Save
+geloescht.
+
+## Wichtige Arbeitsregel
+
+**Niemals auf GitHub pushen, Releases erstellen oder die PR aktualisieren, ohne
+die ausdrueckliche Aufforderung des Nutzers.**
+
+Der Nutzer moechte unfertige lokale Versionen erst auf seiner Hardware testen.
+Lokales Bauen, Testen und ein lokaler Web-Installer sind immer erlaubt und
+erwuenscht.
+
+Aktueller Git-Zustand bei Erstellung dieser Datei:
+
+- Branch: `tamapoke-expanded-update`
+- `fork`: `https://github.com/ShadowEnemyx/TamaPoke.git`
+- `origin`: `https://github.com/socquique/TamaPoke.git`
+- Der Branch ist mindestens einen Commit vor dem Fork und hat absichtlich lokale,
+  noch nicht veroeffentlichte Aenderungen.
+- Der Hauptautor hat die grosse Expanded-PR offen gelassen und verlinkt den Fork,
+  moechte sie aber wegen Umfang, Branding und Binary-Historie nicht komplett in
+  das Basisprojekt mergen. Kleine, spaetere Einzel-PRs waeren moeglich, aber nur
+  nach Nutzerentscheidung.
+
+## Vorhandene Funktionen
+
+### Kernspiel
+
+- Ei, Starterwahl, Schluetzen, Pflege, Schlaf, Hygiene, Hunger, Freude,
+  Energie, Gewicht, Bindung, Spitznamen, Evolution, Farewell, Release und
+  Runaway.
+- Alter und Pflege laufen mit RTC auch bei ausgeschaltetem Display weiter;
+  Offline-Fortschritt ist begrenzt.
+- Pokedex/Gallery unterscheidet gezuechtete (`raised`) und gefangene (`caught`)
+  Pokemon.
+- Profil, Persoenlichkeit, Tagesziele, Medaillen, Fortschritt und
+  Sammler-Rang sind ueber acht Swipe-Karten erreichbar.
+
+### Battle
+
+- Manuelle Wild Battles ueber die Battle-Karte, zusaetzlich seltene optionale
+  Wild-Encounter-Prompts auf dem Hauptscreen.
+- Gegner-Level liegen normalerweise nahe am Pet-Level, koennen aber auch einige
+  Level darunter liegen. Wilde Legendaere sind in v1 nicht vorgesehen.
+- Typen sind in den Kaempfen sichtbar und beeinflussen Schaden moderat.
+- Aktionen: Quick, Heavy, Dodge/Counter, Rest und Run.
+  - Quick: weniger Schaden, sicherer und reduziert eingehenden Schaden.
+  - Heavy: mehr Schaden, aber der Gegner kann ausweichen/kontern.
+  - Dodge: kann Counter fuer den naechsten Angriff vorbereiten.
+  - Rest: maximal zweimal pro Kampf, heilt und gibt Guard.
+- Kein Pokemon-Tod, kein Catching bei Niederlage. Siege/Niederlagen/Streaks
+  sind persistent und geben moderate Trainingsbelohnungen.
+- Nach einem Sieg gibt es genau einen optionalen Fangversuch. Bei knapper
+  Niederlage kann es eine kleine "respect catch"-Chance geben.
+
+### Minigames und Events
+
+- Play-Menue mit Ball, Catch, Memo, Clean und Type.
+- Ball ist ein schweres Reaktionsspiel mit schneller/unvorhersehbarer Bewegung.
+- Catch ist ein Reaktionsspiel mit zunehmend kurzen Zeitfenstern.
+- Memo zeigt eine Farbsequenz, die nachgetippt werden muss; die Anleitung liegt
+  optisch zwischen den Pad-Reihen und die Pads haben eigene Toene.
+- Clean und Type ergaenzen Hygiene- bzw. Typen-/Angriffs-Training.
+- Seltene, freiwillige Pet-Events (Berry, Heart, Sparkle) und seltene optionale
+  Wild-Encounter unterbrechen andere UI-Modalen nicht.
+
+### Expedition und Inventar
+
+- Achte Karte `EXPEDITION` mit 15/30/60-Minuten-Touren.
+- Ein kleiner Hauptscreen-Chip erscheint nur bei aktiver Tour, abholbarem Fund
+  oder vorhandenen Items; ein Tap oeffnet direkt die Expeditions-Karte.
+- Touren laufen per RTC weiter, auch wenn das Board ausgeschaltet ist.
+- Belohnung wird beim Start festgelegt und persistiert.
+- Inventar: Trail Snack, Energy Tonic, Care Kit und Train Token. Maximal drei
+  jedes Items; Train Token oeffnet die ATK/DEF/SPD-Auswahl.
+
+### Einstellungen, Hilfe und Performance
+
+- Settings: Sprache, Uhrzeit, vier Soundmodi und optionales Power Save.
+- Power Save ist standardmaessig aus; es reduziert Idle-Rendering und nutzt
+  Light Sleep nur bei Dimmung/Screen-Off. Pflege, RTC und Touch-Wakeup bleiben
+  aktiv.
+- Acht integrierte Hilfeseiten beschreiben Bedienung, Battle und Systeme.
+- Statische Screens nutzen Dirty-Rendering; aktive Spiele/Battle bleiben
+  regelmaessig gerendert.
+
+## Audio
+
+Audio ist vollstaendig synthetisch ueber ES8311/I2S. Es werden keine originalen
+Pokemon-Audiodateien oder ROM-Sounds benutzt.
+
+- `SOUND_FULL` / TON VIEL: UI, Minigames, Battle, Ambient und Pet-Rufe.
+- `SOUND_MED`: wichtige Care-, Battle-, Event- und Ergebnis-Sounds.
+- `SOUND_LOW`: grosse Ereignisse und Warnungen.
+- `SOUND_OFF`: stumm.
+
+Der gerade umgesetzte, noch auf Hardware zu pruefende Stand `1.29.5-pet-chirps`
+verbessert Pet-Rufe:
+
+- vier statt drei Toene, laenger und ohne Noise-Wave
+- hoehere Synthese-Lautstaerke
+- bei TON VIEL hat ein Pet-Tap Vorrang vor dem generischen Klick
+- kurzer Pet-Tap-Ruf-Cooldown (220 ms), normal 800 ms
+
+Wichtig: Der Nutzer hatte den bisherigen Pet-Tap-Sound als "sehr wenig und
+nichts sagend" empfunden. Diese Aenderung muss auf echter Hardware angehoert
+werden. Nicht behaupten, sie sei bereits bestaetigt.
+
+## Aktuelle lokale Aenderungen seit der letzten Veroeffentlichung
+
+Die folgenden Aenderungen sind lokal implementiert, getestet und gebaut, aber
+nicht gepusht:
+
+1. `1.29.3-reliability`
+   - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
+   - Farewell/Release/Runaway wird nach einem Reset sicher abgeschlossen.
+   - Pet-Level ist auf 100 begrenzt.
+   - `millis()`-Deadlines sind rollover-sicher.
+   - Karten aktualisieren bei Pet-Ticks wieder.
+   - verbleibende UI-Literale wurden i18n-Keys zugeordnet.
+   - macOS `._*`-Sidecars innerhalb von `.git` wurden entfernt; `git fsck` ist
+     danach bis auf einen normalen dangling Commit sauber.
+2. `1.29.4-profile-tap`
+   - Die gruennen Kreise im Profil waren Sammlerrahmen. Sie werden nicht mehr
+     ueber dem Portrait gezeichnet.
+   - Ein Tap auf das Profil-Portrait spielt jetzt den Spezies-Ruf.
+3. `1.29.5-pet-chirps`
+   - Klarere und hoerbarere, eigene synthetische Spezies-Rufe.
+4. `1.30-expedition-hud`
+   - Sichtbarer, runder-screen-tauglicher Einstieg zu Tour und Inventar auf
+     dem Hauptscreen. Der Chip zeigt Tour-Restzeit, abholbaren Fund oder
+     Inventaranzahl und bleibt in allen Modal-Ansichten verborgen.
+5. `1.30.1-caught-frames`
+   - Wildkaempfe zeigen links neben dem Gegner-HP-Balken einen kleinen
+     Pokeball, wenn dieses Pokemon bereits gefangen wurde.
+   - Profilrahmen sind wieder sichtbar: sechs Ecken-/Akzentvarianten liegen
+     hinter dem Portrait und verdecken den Sprite nicht.
+6. `1.31.0-day-imu`
+   - Gemeinsame Tageszeit-API in `dayphase.h` (Morgen/Tag/Abend/Nacht).
+   - Wach nachts: FOOD -1/Tick statt -2; Schlaf unveraendert. Offline-Minuten
+     nutzen die Uhrzeit jeder Minute.
+   - Wild-Pool nach Phase: Morgen Grass/Flying/Normal/Bug, Abend Water/Flying/Fire,
+     Nacht Ghost/Poison/Bug. Tag bleibt ungefiltert. Keine Legends.
+   - Nacht-Idle laeuft seltener. Ein Morgen-Overlay einmal pro Kalendertag,
+     ohne Auto-Wecken.
+   - QMI8658: Schuetteln gibt JOY auf dem Hauptscreen (Cooldown 25 s, 8/Tag).
+     Schritte auch bei Screen-off; USB verwirft Steps. Serial: `IMU`, `SHAKE`, `WALK n`.
+7. `1.31.1-shake-fix`
+   - Shake-Schwelle gesenkt (~1.45 g oder Gyro), Accel+Gyro, beide I2C-Adressen.
+8. `1.32.0-evo-cta`
+   - Roter Entwicklungs-Button bleibt, sobald das Level reicht, auch wenn ein
+     Balken unter 40 liegt. Tippen erinnert dann an die Balken.
+   - "Form behalten" auf Level 100 kommt nach einem Spieltag wieder.
+
+## Architektur und wichtige Dateien
+
+- `TamaPoke.ino`: UI, Touch-Routing, Rendern, Karten, Minigames, Battle-Screen,
+  Settings, Hilfe, lokaler Laufzeit-Zustand, IMU-Poll und Morgen-Overlay.
+- `dayphase.h`: Stunde, Phase und visuelle Nacht aus RTC-Epoch.
+- `imu.h` / `imu.cpp`: QMI8658 Poll, Shake-Kante, Pedometer-Delta.
+- `pet.h` / `pet.cpp`: persistentes Pet-Modell, NVS Save/Load, Pflege,
+  Progression, Pokedex, Catching, Events, Expedition und Items.
+- `battle.h` / `battle.cpp`: testbare Battle-Logik und Typ-Multiplikatoren.
+- `audio.h` / `audio.cpp`: Sound-Queue, ES8311, SFX und Spezies-Rufe.
+- `species_chirp.h` / `species_chirp.cpp`: pro Dexnummer generierte,
+  rechtlich unbedenkliche Syntheseprofile.
+- `i18n.h` / `i18n.cpp`: alle sichtbaren UI-Texte und Dex-Namen.
+- `time_utils.h`: rollover-sichere `deadlineActive`, `deadlineReached` und
+  `deadlineRemaining` fuer `millis()`-Timer.
+- `tests/pet_tests.cpp` und `tests/battle_tests.cpp`: native Regressionstests.
+- `tools/build_web.sh`: erzeugt die vier separaten Installer-Binaries.
+- `web/manifest.json` und `web/index.html`: Web-Installer. Die Parts werden
+  getrennt geflasht, damit NVS/Save bei Updates erhalten bleibt.
+
+## Testen und lokales Flashen
+
+Im Repository-Ordner (`TamaPoke`) ausfuehren:
+
+```bash
+cd tests && make clean && make test
+cd .. && bash tools/build_web.sh
+python3 -m http.server 8000 --directory web
+```
+
+Danach auf dem Mac Chrome oder Edge oeffnen:
+
+```text
+http://127.0.0.1:8000/?v=1.32.0-evo-cta
+```
+
+Waveshare per USB verbinden und im Installer **Erase device deaktiviert lassen**.
+Der lokale Server muss waehrend des Flashens weiterlaufen. Der aktuelle
+Web-Installer erwartet diese vier Dateien:
+
+```text
+web/firmware/tamapoke-1.32.0-evo-cta-bootloader.bin
+web/firmware/tamapoke-1.32.0-evo-cta-partitions.bin
+web/firmware/tamapoke-1.32.0-evo-cta-boot_app0.bin
+web/firmware/tamapoke-1.32.0-evo-cta-app.bin
+```
+
+## Verifikation vor einer eventuellen Veroeffentlichung
+
+1. `cd tests && make clean && make test`
+2. `bash tools/build_web.sh`
+3. `git diff --check`
+4. Hardware-Smoke-Test ohne Erase:
+   - Save/Pet bleibt erhalten.
+   - Hauptscreen-Pet mehrfach antippen: Ruf muss klar hoerbar sein.
+   - Profil oeffnen: keine gruennen Rahmenkreise ueber dem Portrait; Portrait
+     antippen pruefen.
+   - Battle, Play-Menue, Memo, Expedition, Schlaf, PWR-Wakeup und Settings
+     kurz pruefen.
+5. Erst nach ausdruecklicher Nutzerfreigabe committen/pushen/veroeffentlichen.
+
+## Offene Themen und sichere naechste Schritte
+
+- `1.31.0-day-imu` auf Hardware pruefen: Serial `IMU` (Ruhe ~1 g), Schuetteln,
+  Schritte ohne USB, USB darf keine JOY geben, Nacht-FOOD, Morgen-Overlay,
+  Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.
+- Als Erstes die `1.29.5` Pet-Rufe auf dem echten Waveshare pruefen. Falls sie
+  weiter zu leise sind, sollte zuerst die ES8311-DAC-/Amp-Lautstaerke und dann
+  die Profilparameter angepasst werden, nicht blind weitere Sounds addieren.
+- Nach neuem Nutzerfeedback erneut gezielte Bug-Hunts machen. Bei Reviews immer
+  zuerst echte Fehler, Save-Risiken und Touch-Hitboxen pruefen.
+- Alle UI-Aenderungen auf dem runden Screen auf abgeschnittenen Text und
+  Fehleingaben pruefen.
+- Keine neue grosse Battle-Funktion ohne Nutzerentscheidung: Der Nutzer wollte
+  zuletzt eher Stabilitaet, gute Bedienung und abwechslungsreiche Alltagsfunktionen.
+- Historische Firmware-Binaries nicht erneut massenhaft in Git aufnehmen. Nur
+  die vier aktuellen Installer-Parts einer freigegebenen Version gezielt
+  veroeffentlichen.

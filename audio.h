@@ -60,4 +60,4 @@ bool audioEnabled();
 void audioSetMode(uint8_t mode);
 uint8_t audioMode();
 bool audioBusy();
-void speciesChirpPlay(int16_t dex);  // eigener, synthetisierter Spezies-Chirp
+void speciesChirpPlay(int16_t dex, bool force = false);  // eigener, synthetisierter Spezies-Chirp

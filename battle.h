@@ -69,7 +69,7 @@ struct BattleTurnResult {
 
 bool canStartWildBattle(bool isEgg, bool sleeping, uint8_t ceremony);
 uint8_t wildLevelFor(uint8_t petLevel, uint8_t luckRoll);
-int16_t pickWildSpecies(uint8_t roll);
+int16_t pickWildSpecies(uint8_t roll, uint8_t phase = 1);
 BattleStats wildBattleStats(int16_t dex, uint8_t level);
 uint8_t battleTypeEffectPct(uint8_t attackType, uint8_t defendType1, uint8_t defendType2);
 BattleRuntime beginBattleRuntime(const BattleStats &player, const BattleStats &enemy);

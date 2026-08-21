@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v1.29.2--memo--layout-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v1.32.0--evo--cta-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/ShadowEnemyx/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/ShadowEnemyx/TamaPoke/stargazers)
@@ -170,9 +170,12 @@ or rewards.
 ### Evolution
 - Triggers when **level ≥ its evolution level** (16 for most base forms; ~30 for
   stone-style, ~40 for trade-style) **and every stat ≥ 40** at that moment.
-- **Never automatic** — a button appears and **you tap to witness it** (with a
-  flicker between the old and new form). Each **slip-up delays it by 1 level**.
-- You can **decline** ("keep form"); it re-offers at the next level.
+- **Never automatic** — a **red button** appears once the level is reached and
+  **you tap to witness it** (with a flicker between the old and new form). Each
+  **slip-up delays it by 1 level**. If a need is below 40, the button stays but
+  tapping it reminds you to raise the bars first.
+- You can **decline** ("keep form"); it re-offers at the next level, or after
+  **one day** if you are already at level 100.
 - *Eevee* branches toward whichever evolution you're still missing.
 
 ### The three endings (you choose & witness each — none auto-fire)
@@ -335,6 +338,16 @@ If one bottoms out it counts as a *slip-up*.
 **Physical PWR button:** short = screen on/off · long (4 s) = full power-off
 (the RTC stays alive, so time passes even while it's off).
 
+**Day and night** follow the clock you set (swipe down). The habitat already
+changes at dawn/day/dusk/night. While awake at night, **FOOD drops slower**.
+Wild encounters bias toward Grass/Flying in the morning and Ghost/Poison/Bug
+at night. The first visit each morning shows a short greeting (it will not
+wake a sleeping pet).
+
+**Motion (QMI8658):** shake the Pokeball on the main screen to play (small JOY,
+cooldown, daily cap). Walking with the screen off still counts steps and slowly
+raises JOY; USB charging ignores steps so a desk bump does not farm stats.
+
 ### Card view
 Swipe up from the main screen, then swipe between cards:
 
@@ -469,6 +482,8 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 - `pet.h` / `pet.cpp` — pet state and logic (stats, evolution, life cycle, streak/bond/medals, NVS)
 - `sdmon.h` / `sdmon.cpp` — TPK1 (animated) and TPK2 (PMD) sprites + thumbnails, and file reception over USB (PUT/LS)
 - `rtcbat.h` / `rtcbat.cpp` — PCF85063 RTC + AXP2101 PMU (battery, brightness, PWR button)
+- `dayphase.h` — hour / phase / visual night from the RTC epoch
+- `imu.h` / `imu.cpp` — QMI8658 poll, shake edge, pedometer delta
 - `audio.h` / `audio.cpp` — ES8311 + I2S + Game-Boy-style tone synth (non-blocking task)
 - `i18n.h` / `i18n.cpp` — the 6-language string tables
 - `dex.h` — GENERATED (`gen_dex.py`): the 151 table
@@ -486,7 +501,7 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 `SHINY` · `NICK <x>` · `BYE` / `RUN` (farewell / runaway) · `ABANDON` (force the
 runaway-ready state) · `WIPE` (factory reset → new game) · `BEEP` (audio test) ·
 `REG` (Pokédex) · `EGGS` (simulate 20 eggs) · `GAL` (gallery) · `CAREDAY` ·
-`TIME <epoch>` / `RTCSET <epoch>` · `HEALTH` (uptime + heap for the soak test) ·
+`TIME <epoch>` / `RTCSET <epoch>` · `IMU` · `SHAKE` · `WALK <n>` · `HEALTH` (uptime + heap for the soak test) ·
 `LS` / `PUT` (SD files).
 
 To test fast: lower `PET_TICK_MS`, `MINUTES_PER_LEVEL` and `FAREWELL_AGE_MIN` in `pet.h`.

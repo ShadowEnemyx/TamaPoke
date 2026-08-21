@@ -123,11 +123,35 @@ static void testWildLevelStaysNearPetLevel() {
   EXPECT_EQ(wildLevelFor(10, 86), 12);
 }
 
+static bool hasType(const DexEntry &entry, uint8_t type) {
+  return entry.type1 == type || entry.type2 == type;
+}
+
 static void testWildSpeciesUsesHatchableNonLegendaryPool() {
   for (uint8_t roll = 0; roll < 100; roll++) {
     int16_t dex = pickWildSpecies(roll);
     EXPECT_TRUE(dex >= 1 && dex <= DEX_COUNT);
     EXPECT_TRUE(DEX_TBL[dex].rarity == R_COMUN || DEX_TBL[dex].rarity == R_RARO);
+  }
+}
+
+static void testNightWildSpeciesPreferGhostPoisonBug() {
+  for (uint8_t roll = 0; roll < 100; roll++) {
+    int16_t dex = pickWildSpecies(roll, 3);
+    EXPECT_TRUE(dex >= 1 && dex <= DEX_COUNT);
+    const DexEntry &entry = DEX_TBL[dex];
+    EXPECT_TRUE(entry.rarity == R_COMUN || entry.rarity == R_RARO);
+    EXPECT_TRUE(hasType(entry, TYPE_GHOST) || hasType(entry, TYPE_POISON) ||
+                hasType(entry, TYPE_BUG));
+  }
+}
+
+static void testMorningWildSpeciesPreferGrassFlyingNormalBug() {
+  for (uint8_t roll = 0; roll < 100; roll++) {
+    int16_t dex = pickWildSpecies(roll, 0);
+    const DexEntry &entry = DEX_TBL[dex];
+    EXPECT_TRUE(hasType(entry, TYPE_GRASS) || hasType(entry, TYPE_FLYING) ||
+                hasType(entry, TYPE_NORMAL) || hasType(entry, TYPE_BUG));
   }
 }
 
@@ -368,6 +392,8 @@ int main() {
   testWildBattleStartGate();
   testWildLevelStaysNearPetLevel();
   testWildSpeciesUsesHatchableNonLegendaryPool();
+  testNightWildSpeciesPreferGhostPoisonBug();
+  testMorningWildSpeciesPreferGrassFlyingNormalBug();
   testWildStatsUseDexBaseAndLevel();
   testBattleRuntimeStartsWithScaledHp();
   testAttackStepsOneRoundAndAvoidsNormalOneHit();

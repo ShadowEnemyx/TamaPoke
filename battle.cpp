@@ -217,16 +217,36 @@ uint8_t wildLevelFor(uint8_t petLevel, uint8_t luckRoll) {
   return level > 100 ? 100 : (uint8_t)level;
 }
 
-int16_t pickWildSpecies(uint8_t roll) {
+static bool wildTypePreferred(uint8_t type1, uint8_t type2, uint8_t phase) {
+  auto has = [&](uint8_t t) { return type1 == t || type2 == t; };
+  switch (phase) {
+    case 0: return has(TYPE_GRASS) || has(TYPE_FLYING) || has(TYPE_NORMAL) || has(TYPE_BUG);
+    case 2: return has(TYPE_WATER) || has(TYPE_FLYING) || has(TYPE_FIRE);
+    case 3: return has(TYPE_GHOST) || has(TYPE_POISON) || has(TYPE_BUG);
+    default: return true;
+  }
+}
+
+int16_t pickWildSpecies(uint8_t roll, uint8_t phase) {
   int16_t pool[DEX_COUNT];
   int count = 0;
   uint8_t targetRarity = (roll % 100) < 25 ? R_RARO : R_COMUN;
-  for (int16_t dex = 1; dex <= DEX_COUNT; dex++) {
-    if (DEX_TBL[dex].rarity == targetRarity) pool[count++] = dex;
-  }
+
+  auto fill = [&](uint8_t rarity, bool prefer) {
+    count = 0;
+    for (int16_t dex = 1; dex <= DEX_COUNT; dex++) {
+      const DexEntry &entry = DEX_TBL[dex];
+      if (entry.rarity != rarity) continue;
+      if (prefer && !wildTypePreferred(entry.type1, entry.type2, phase)) continue;
+      pool[count++] = dex;
+    }
+  };
+
+  fill(targetRarity, true);
+  if (count == 0) fill(targetRarity, false);
   if (count == 0 && targetRarity == R_RARO) {
-    for (int16_t dex = 1; dex <= DEX_COUNT; dex++)
-      if (DEX_TBL[dex].rarity == R_COMUN) pool[count++] = dex;
+    fill(R_COMUN, true);
+    if (count == 0) fill(R_COMUN, false);
   }
   return count > 0 ? pool[roll % count] : 1;
 }

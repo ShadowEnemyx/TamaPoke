@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
+#include "time_utils.h"
 
 // 1 tick = 1 minuto de juego. Baja este valor para probar mas rapido
 // (p. ej. 5000UL = las estadisticas caen 12x mas rapido).
@@ -53,6 +54,14 @@ enum ExpeditionItem : uint8_t {
 };
 #define EXP_ITEM_COUNT 4
 #define EXP_ITEM_MAX 3
+
+// Zustand fuer den kleinen Expeditions-Hinweis auf dem Hauptscreen.
+enum ExpeditionHudState : uint8_t {
+  EXP_HUD_HIDDEN = 0,
+  EXP_HUD_ACTIVE,
+  EXP_HUD_READY,
+  EXP_HUD_BAG,
+};
 
 enum TrainingStat : int8_t {
   TRAIN_STAT_ATK = 0,
@@ -137,7 +146,7 @@ public:
   bool saveCreatedThisBoot = false;
 
   void begin();                 // carga estado de NVS (o crea el primer huevo)
-  void update(uint32_t nowMs);  // llamar en cada loop()
+  bool update(uint32_t nowMs);  // true cuando avanzo el estado del bicho
 
   // Acciones (botones tactiles)
   void feed();              // baya roja (compatibilidad)
@@ -153,6 +162,9 @@ public:
   uint8_t applyTypeResult(uint8_t score);
   bool applyPetEvent(uint8_t eventType);
   uint8_t interactPet(bool eveningBonus);
+  bool applyShake();
+  uint8_t applyWalk(uint16_t steps);
+  bool takeMorningGreeting();
   PetPersonality personality() const;
   void ensureDailyGoals();
   uint8_t dailyGoalTarget(uint8_t goalType) const;
@@ -166,6 +178,8 @@ public:
   static uint8_t expeditionEnergyCost(uint8_t minutes);
   bool expeditionActive(uint32_t nowEpoch) const;
   bool expeditionReady(uint32_t nowEpoch) const;
+  uint8_t expeditionItemCount() const;
+  ExpeditionHudState expeditionHudState(uint32_t nowEpoch) const;
   bool expeditionInventoryFull() const;
   bool canStartExpedition(uint8_t minutes, uint32_t nowEpoch) const;
   uint8_t expeditionTrainingChance(uint8_t minutes) const;
@@ -191,29 +205,33 @@ public:
 
   bool isEgg() const { return speciesId < 0; }
   uint8_t eggCracks() const { return eggTaps; }
-  bool eating() const { return millis() < eatUntil; }
-  bool showHeart() const { return millis() < heartUntil; }
-  bool evolving() const { return millis() < evolveUntil; }
+  bool eating() const { return deadlineActive(millis(), eatUntil); }
+  bool showHeart() const { return deadlineActive(millis(), heartUntil); }
+  bool evolving() const { return deadlineActive(millis(), evolveUntil); }
   float evolveT() const {     // progreso de la animacion de evolucion 0..1
     uint32_t n = millis();
-    uint32_t left = evolveUntil > n ? evolveUntil - n : 0;
+    uint32_t left = deadlineRemaining(n, evolveUntil);
     return 1.0f - (float)left / (float)EVOLVE_ANIM_MS;
   }
-  bool canEvolveNow() const;  // condiciones de evolucion cumplidas (lista)
+  bool evolutionUnlocked() const;  // nivel reicht, Form kann sich noch entwickeln
+  bool canEvolveNow() const;  // lista: unlocked + wach + alle Balken >= 40
   void evolve();              // dispara la transformacion (la llama un toque del usuario)
   bool canFarewellNow() const;  // forma final + 7 dias: lista para despedirse (boton)
   bool canRunawayNow() const;   // abandono total 1h: lista para escaparse (boton triste)
   // el usuario decide en un dialogo; "mantener/quedaros" pospone y re-ofrece luego
-  bool wantEvolveButton() const { return canEvolveNow() && level() > evoDeclinedLv; }
+  bool wantEvolveButton() const;
   bool wantFarewellButton() const { return canFarewellNow() && ageMinutes >= farDeclinedAge; }
-  void declineEvolve() { evoDeclinedLv = level(); }              // re-ofrece al subir de nivel
+  void declineEvolve();
   void declineFarewell() { farDeclinedAge = ageMinutes + 1440; } // re-ofrece dentro de 1 dia
   // primera partida: el jugador elige inicial (Bulbasaur/Charmander/Squirtle)
   bool awaitingStarter() const { return starterPick; }
   void chooseStarter(int16_t dex) { eggTarget = dex; starterPick = false; save(); }
   void factoryReset() { prefs.clear(); }  // borra la NVS (test: comando serie WIPE)
   void dbgRunawayReady() { fullness = joy = energy = hygiene = 0; neglectTicks = RUNAWAY_TICKS; }  // test
-  uint8_t level() const { return 1 + ageMinutes / MINUTES_PER_LEVEL; }
+  uint8_t level() const {
+    uint32_t raw = 1UL + ageMinutes / MINUTES_PER_LEVEL;
+    return raw > 100UL ? 100 : (uint8_t)raw;
+  }
   bool isRegistered(int16_t dex) const {
     return dex >= 1 && dex <= 151 && (dexReg[(dex - 1) >> 3] & (1 << ((dex - 1) & 7)));
   }
@@ -245,16 +263,16 @@ public:
   float ceremonyT() const {
     if (ceremony == CER_NONE) return 0.0f;
     uint32_t n = millis();
-    uint32_t left = ceremonyUntil > n ? ceremonyUntil - n : 0;
+    uint32_t left = deadlineRemaining(n, ceremonyUntil);
     return 1.0f - (float)left / (float)CEREMONY_MS;
   }
 
   // racha / vinculo / medallas / nombre
   void rename(const char *name);
   bool hasMedal(uint16_t m) const { return medals & m; }
-  bool showMedal() const { return millis() < medalUntil; }
-  bool showMilestone() const { return millis() < milestoneUntil; }
-  bool showDexReward() const { return millis() < dexRewardUntil; }
+  bool showMedal() const { return deadlineActive(millis(), medalUntil); }
+  bool showMilestone() const { return deadlineActive(millis(), milestoneUntil); }
+  bool showDexReward() const { return deadlineActive(millis(), dexRewardUntil); }
   uint8_t lastDexRewardGoal() const { return lastDexReward; }
   int careBonus() const;  // mejora del huevo por racha + vinculo
 
@@ -276,7 +294,8 @@ private:
   uint8_t mistakeCooldown = 0;
   uint8_t ticksSinceSave = 0;
   bool pendingSave = false;     // guardado periodico pendiente de volcar
-  uint8_t evoDeclinedLv = 0;    // "mantener forma": no ofrecer evolucion hasta subir de nivel
+  uint8_t evoDeclinedLv = 0;    // "mantener forma": no ofrecer hasta el siguiente nivel
+  uint32_t evoDeclinedAge = 0;  // auf Lv.100: wieder anbieten ab diesem Alter
   uint32_t farDeclinedAge = 0;  // "quedaros juntos": no ofrecer despedida hasta esta edad
   bool starterPick = false;     // primera partida: esperando que el jugador elija inicial
   uint8_t neglectTicks = 0;
@@ -287,6 +306,17 @@ private:
   uint32_t milestoneUntil = 0; // celebracion de hito de racha
   uint32_t dexRewardUntil = 0;
   uint8_t lastDexReward = 0;
+  uint32_t lastMorningDay = 0;
+  uint32_t shakeReadyAt = 0;
+  uint32_t shakeDay = 0;
+  uint8_t shakeCountToday = 0;
+  uint16_t walkJoyBank = 0;
+  uint16_t walkBondBank = 0;
+  uint32_t walkDay = 0;
+  uint32_t walkHour = 0;
+  uint8_t walkJoyToday = 0;
+  uint8_t walkJoyHour = 0;
+  uint8_t walkBondToday = 0;
 
   uint32_t today() const { return lastSeenEpoch ? lastSeenEpoch / 86400 : 0; }
   void registerCare();   // primer cuidado del dia: racha + vinculo

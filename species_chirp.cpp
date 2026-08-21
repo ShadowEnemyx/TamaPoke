@@ -35,29 +35,36 @@ bool speciesChirpProfile(int16_t dex, SpeciesChirpProfile *out) {
   const int direction = (seed & 0x80) ? 1 : -1;
   const int span = 70 + (seed & 0x5F);
 
-  out->count = 3;
+  out->count = 4;
   out->notes[0] = {
     clampPitch(base + (int)(seed & 0x1F) * 5),
-    (uint16_t)(42 + (seed & 0x1F)),
+    (uint16_t)(68 + (seed & 0x1F)),
     (int16_t)(direction * span),
-    (uint8_t)(52 + ((seed >> 2) & 0x1F)),
-    (uint8_t)(seed & 0x03),
+    (uint8_t)(78 + ((seed >> 2) & 0x0F)),
+    (uint8_t)(seed % 3),
   };
   out->notes[1] = {
     clampPitch(base + direction * (35 + ((seed >> 3) & 0x7F))),
-    (uint16_t)(34 + ((seed >> 5) & 0x1F)),
+    (uint16_t)(54 + ((seed >> 5) & 0x1F)),
     (int16_t)(-direction * (span / 2)),
-    (uint8_t)(46 + ((seed >> 1) & 0x27)),
-    (uint8_t)((seed >> 3) & 0x03),
+    (uint8_t)(74 + ((seed >> 1) & 0x0F)),
+    (uint8_t)((seed >> 3) % 3),
   };
   // Die dritte Frequenz enthaelt bewusst die Dexnummer direkt. Dadurch hat
   // jede der 151 Spezies ein eindeutig anderes, eigenes Klangprofil.
   out->notes[2] = {
     (uint16_t)(220 + dex * 11),
-    (uint16_t)(48 + ((seed >> 4) & 0x1F)),
+    (uint16_t)(64 + ((seed >> 4) & 0x1F)),
     (int16_t)(direction * (30 + entry.bSpe)),
-    (uint8_t)(48 + ((seed >> 4) & 0x1F)),
-    (uint8_t)((seed + entry.type2) & 0x03),
+    (uint8_t)(80 + ((seed >> 4) & 0x0F)),
+    (uint8_t)((seed + entry.type2) % 3),
+  };
+  out->notes[3] = {
+    clampPitch(base + direction * (80 + (seed & 0x3F))),
+    (uint16_t)(82 + ((seed >> 2) & 0x0F)),
+    (int16_t)(-direction * (span + 35)),
+    (uint8_t)(86 + ((seed >> 3) & 0x0B)),
+    CHIRP_SOFT,
   };
   return true;
 }

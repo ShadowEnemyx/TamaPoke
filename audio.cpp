@@ -242,7 +242,7 @@ static void playTone(const Note &note) {
   int total = SAMPLE_RATE * ms / 1000;
   int done = 0;
   int phase = 0;
-  const int16_t maxAmp = (int16_t)(7600L * note.vol * modeGainPct() / 10000);
+  const int16_t maxAmp = (int16_t)(9200L * note.vol * modeGainPct() / 10000);
   while (done < total) {
     int n = total - done; if (n > 256) n = 256;
     for (int i = 0; i < n; i++) {
@@ -275,7 +275,9 @@ static void playSpeciesChirp(uint8_t dex) {
   if (!speciesChirpProfile(dex, &profile)) return;
   for (uint8_t i = 0; i < profile.count; i++) {
     const SpeciesChirpNote &src = profile.notes[i];
-    Note note = { src.frequency, src.durationMs, src.slide, src.volume, src.wave };
+    uint8_t volume = src.volume;
+    if (gMode == SOUND_FULL && volume < 90) volume = (uint8_t)(volume + 10);
+    Note note = { src.frequency, src.durationMs, src.slide, volume, src.wave };
     playTone(note);
   }
 }
@@ -372,10 +374,11 @@ bool audioBusy() {
   return gBusy || (gQ && uxQueueMessagesWaiting(gQ) > 0);
 }
 
-void speciesChirpPlay(int16_t dex) {
+void speciesChirpPlay(int16_t dex, bool force) {
   if (!gReady || !gQ || gMode < SOUND_MED || dex < 1 || dex > 151) return;
   uint32_t now = millis();
-  if (now - gLastChirpAt < 800UL) return;
+  uint32_t cooldown = force ? 220UL : 800UL;
+  if (gLastChirpAt && now - gLastChirpAt < cooldown) return;
   gLastChirpAt = now;
   AudioEvent event = { AUDIO_EVENT_CHIRP, (uint8_t)dex };
   xQueueSend(gQ, &event, gMode == SOUND_FULL ? pdMS_TO_TICKS(28) : 0);

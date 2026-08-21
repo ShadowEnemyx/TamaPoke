@@ -24,10 +24,13 @@
 #include "i18n.h"
 #include "audio.h"
 #include "battle.h"
+#include "time_utils.h"
+#include "dayphase.h"
+#include "imu.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "1.29.2-memo-layout"
+#define FW_VERSION "1.32.0-evo-cta"
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
 
@@ -176,6 +179,14 @@ uint32_t lastPetEventCheck = 0;
 uint8_t petEventType = PET_EVENT_BERRY;
 uint32_t petEventFeedbackUntil = 0;
 char petEventMsg[18] = "";
+uint32_t morningUntil = 0;
+uint32_t eggWiggleUntil = 0;
+
+int sceneHour();
+uint8_t currentDayPhase();
+bool mainScreenReadyForShake();
+void maybeOfferMorning(uint32_t now);
+uint32_t pmdActTotalMs(const PmdAct &a);
 
 // las 9 especies con sprite propio en flash (respaldo sin SD): dex -> indice
 int flashIdxForDex(int16_t dex) {
@@ -369,6 +380,7 @@ void setup() {
   }
   pet.syncClock(e);
   loadPowerSave();
+  imuBegin();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
 
@@ -407,7 +419,7 @@ void maybePlayAmbientSound(uint32_t now) {
     return;
   }
   if (nextAmbientSoundAt == 0) nextAmbientSoundAt = now + 8000 + random(8000);
-  if (now < nextAmbientSoundAt) return;
+  if (deadlineActive(now, nextAmbientSoundAt)) return;
   uint8_t r = (uint8_t)random(3);
   sfxPlay(r == 0 ? SFX_HEART : (r == 1 ? SFX_EVENT_SPARKLE : SFX_MENU));
   nextAmbientSoundAt = now + 8000 + random(8000);
@@ -428,7 +440,7 @@ bool lightSleepAllowed(uint32_t now) {
   if (!powerSave || usbPresent() || audioBusy() || Serial.available()) return false;
   if (!screenOff && dimStage == 0) return false;
   if (!screenOff && now - lastInteract < 1500UL) return false;
-  if (wasPressed || gTouchIrq || now < ignoreTouchUntil) return false;
+  if (wasPressed || gTouchIrq || deadlineActive(now, ignoreTouchUntil)) return false;
   if (gameOpen || sackOpen || battleOpen || bathUntil) return false;
   if (pet.awaitingStarter() || feedMenuUntil || confirmUntil || choiceKind || wildPromptUntil || petEventUntil) return false;
   if (pet.evolving() || pet.ceremony || pet.eating() || pet.showHeart()) return false;
@@ -466,7 +478,8 @@ void maybeLightSleep(uint32_t now) {
 void loop() {
   uint32_t now = millis();
   uint32_t loopStart = now;
-  pet.update(now);
+  bool petChanged = pet.update(now);
+  if (petChanged && cardOpen && cardPage != 7) cardDirty = true;
 
   // avisa con un sonido cuando el bicho pasa a estar listo para evolucionar
   // (incluye el caso de cumplir al despertar). canEvolveNow es false durmiendo.
@@ -487,7 +500,35 @@ void loop() {
   pet.ensureDailyGoals();
   maybeOfferWildEncounter(now);
   maybeOfferPetEvent(now);
+  maybeOfferMorning(now);
   maybePlayAmbientSound(now);
+
+  uint16_t imuMs = screenOff ? 400 : (dimStage ? 80 : 40);
+  imuPoll(now, imuMs);
+  uint16_t walked = imuTakeSteps();
+  if (!usbPresent()) pet.applyWalk(walked);
+  if (imuShakeEdge() && !screenOff) {
+    if (pet.isEgg()) {
+      eggWiggleUntil = now + 450;
+      sfxPlay(SFX_TAP);
+    } else if (mainScreenReadyForShake()) {
+      lastInteract = now;
+      if (pmd.has(PMD_POSE)) {
+        beh.mode = 2;
+        beh.act = PMD_POSE;
+        beh.t0 = now;
+        beh.until = now + pmdActTotalMs(pmd.acts[PMD_POSE]);
+      }
+      if (pet.applyShake()) {
+        if (audioMode() == SOUND_FULL) speciesChirpPlay(pet.speciesId, true);
+        else sfxPlay(SFX_HEART);
+        snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(S_HAPPY_FB));
+        petEventFeedbackUntil = now + 1600;
+      } else {
+        sfxPlay(SFX_TAP);
+      }
+    }
+  }
 
   // Die Expeditionskarte bleibt sonst als statischer Screen stehen. Ein
   // sekundenweises Dirty-Render ist nur aktiv, waehrend ihr Countdown sichtbar ist.
@@ -718,6 +759,20 @@ void handleSerial() {
                   pet.shiny, pet.streak, pet.bestStreak, pet.bond, pet.medals,
                   pet.totalMedals, pet.nick);
     Serial.println("DONE");
+  } else if (line == "IMU") {
+    Serial.printf("imu=%d addr=0x%02X mag=%.2f gyro=%.0f ped=%lu phase=%u hour=%d\n",
+                  imuOk(), imuAddr(), imuLastMagG(), imuLastGyroDps(),
+                  (unsigned long)imuPedometer(), currentDayPhase(), sceneHour());
+    Serial.println("DONE");
+  } else if (line == "SHAKE") {
+    bool okShake = pet.applyShake();
+    Serial.printf("shake=%d joy=%u\n", okShake, pet.joy);
+    Serial.println("DONE");
+  } else if (line.startsWith("WALK ")) {
+    uint16_t n = (uint16_t)line.substring(5).toInt();
+    uint8_t gained = pet.applyWalk(n);
+    Serial.printf("walk=%u joy=%u bond=%u\n", gained, pet.joy, pet.bond);
+    Serial.println("DONE");
   }
 }
 
@@ -727,11 +782,16 @@ bool inPetZone(int16_t x, int16_t y) {
   return x > 110 && x < 356 && y > 95 && y < 310;
 }
 
+bool inProfilePetPortrait(int16_t x, int16_t y) {
+  int dx = x - CX, dy = y - 206;
+  return dx * dx + dy * dy <= 76 * 76;
+}
+
 // el toque se resuelve al LEVANTAR el dedo para distinguir tap de deslizar
 void handleTouch() {
   static uint32_t lastPoll = 0;
   uint32_t now = millis();
-  if (now < ignoreTouchUntil) {
+  if (deadlineActive(now, ignoreTouchUntil)) {
     gTouchIrq = false;
     wasPressed = false;
     return;
@@ -829,18 +889,27 @@ void handleTouch() {
 void openClock();  // prototipo
 int16_t boxDexAt(uint16_t index);
 uint8_t boxPageCount();
+int sceneHour();
 uint8_t currentDayPhase();
 StrId dayPhaseTextId(uint8_t phase);
+bool mainScreenReadyForShake();
+void maybeOfferMorning(uint32_t now);
+uint32_t pmdActTotalMs(const PmdAct &a);
 void startCleanGame();
 void startTypeGame();
 void cleanTap(int16_t x, int16_t y);
 void typeTap(int16_t x, int16_t y);
 void expeditionCardTap(int16_t x, int16_t y);
+uint32_t expeditionNowEpoch();
+bool expeditionHudVisible();
+bool inExpeditionHudHit(int16_t x, int16_t y);
+void openExpeditionCard();
+void drawExpeditionHud();
 
 void onSwipeV(int dir) {
   if (helpOpen) { helpOpen = false; clockOpen = true; clockDirty = true; lockTouchBrief(); sfxPlay(SFX_TAP); return; }
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (wildPromptUntil && millis() < wildPromptUntil) return;
+  if (wildPromptUntil && deadlineActive(millis(), wildPromptUntil)) return;
   if (wildPromptUntil) wildPromptUntil = 0;
   if (gameMenuOpen) return;
   if (gameOpen || galleryOpen || kbOpen || sackOpen || battleOpen || pet.ceremony) return;
@@ -869,7 +938,7 @@ void onSwipe(int dir) {
     return;
   }
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (wildPromptUntil && millis() < wildPromptUntil) return;
+  if (wildPromptUntil && deadlineActive(millis(), wildPromptUntil)) return;
   if (wildPromptUntil) wildPromptUntil = 0;
   if (gameMenuOpen) return;
   if (gameOpen || kbOpen || clockOpen || battleOpen) return;
@@ -980,7 +1049,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (pet.ceremony) return;  // durante la despedida no hay botones
   if (cardOpen) {
-    if (cardPage == 0 && y < 84) openKeyboard();  // tocar el nombre = renombrar
+    if (cardPage == 0 && inProfilePetPortrait(x, y)) {
+      speciesChirpPlay(pet.speciesId, true);
+    }
+    else if (cardPage == 0 && y < 84) openKeyboard();  // tocar el nombre = renombrar
     else if (cardPage == 0 && y >= 366 && y <= 398) {
       uint8_t count = pet.unlockedCollectionFrameCount();
       uint8_t next = pet.collectionFrame;
@@ -1054,7 +1126,7 @@ void onTap(int16_t x, int16_t y) {
     battleTap(x, y);
     return;
   }
-  if (petEventUntil && millis() < petEventUntil && inPetEventHit(x, y)) {
+  if (petEventUntil && deadlineActive(millis(), petEventUntil) && inPetEventHit(x, y)) {
     acceptPetEvent();
     return;
   }
@@ -1065,7 +1137,7 @@ void onTap(int16_t x, int16_t y) {
     return;
   }
   if (wildPromptUntil) {
-    if (millis() < wildPromptUntil) {
+    if (deadlineActive(millis(), wildPromptUntil)) {
       bool fight = (x >= 93 && x <= 373 && y >= 226 && y <= 270);
       bool later = (x >= 93 && x <= 373 && y >= 278 && y <= 322);
       if (fight) {
@@ -1078,6 +1150,10 @@ void onTap(int16_t x, int16_t y) {
     } else {
       wildPromptUntil = 0;
     }
+    return;
+  }
+  if (inExpeditionHudHit(x, y)) {
+    openExpeditionCard();
     return;
   }
   if (choiceKind) {          // dialogo de decision: boton accion (arriba) / mantener (abajo)
@@ -1094,14 +1170,14 @@ void onTap(int16_t x, int16_t y) {
     return;
   }
   if (confirmUntil) {        // dialogo "soltar?": SI / NO
-    if (millis() < confirmUntil && x >= 118 && x <= 218 && y >= 252 && y <= 304) {
+    if (deadlineActive(millis(), confirmUntil) && x >= 118 && x <= 218 && y >= 252 && y <= 304) {
       pet.release();
     }
     confirmUntil = 0;
     return;
   }
   if (feedMenuUntil) {       // selector de comida
-    if (millis() < feedMenuUntil && y >= 288 && y <= 352 && x >= 101 && x <= 365) {
+    if (deadlineActive(millis(), feedMenuUntil) && y >= 288 && y <= 352 && x >= 101 && x <= 365) {
       int item = (x - 101) / 66;
       if (item == 3) pet.feedCandy();
       else pet.feedBerry(item);
@@ -1118,7 +1194,13 @@ void onTap(int16_t x, int16_t y) {
   // boton de evolucion: abre el dialogo evolucionar/mantener
   if (pet.wantEvolveButton() && x >= EVO_BTN_X && x <= EVO_BTN_X + EVO_BTN_W &&
       y >= EVO_BTN_Y && y <= EVO_BTN_Y + EVO_BTN_H) {
-    choiceKind = 1; choiceUntil = millis() + 12000;
+    if (pet.canEvolveNow()) {
+      choiceKind = 1; choiceUntil = millis() + 12000;
+    } else {
+      snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(S_EVO_BLOCKED));
+      petEventFeedbackUntil = millis() + 1800;
+      sfxPlay(SFX_DENY);
+    }
     return;
   }
   // botones de final (mismo recuadro): escapada directa; despedida abre dialogo
@@ -1158,14 +1240,15 @@ void onTap(int16_t x, int16_t y) {
     uint8_t r = pet.interactPet(currentDayPhase() == 2);
     // Der Spezies-Chirp ist direkte Rueckmeldung fuer jeden Pet-Tap. Er darf
     // nicht von der zehnminuetigen Pflege-Belohnung abhaengen.
-    if (!pet.sleeping && audioMode() == SOUND_FULL) speciesChirpPlay(pet.speciesId);
+    if (!pet.sleeping && audioMode() == SOUND_FULL) speciesChirpPlay(pet.speciesId, true);
     if (r == PET_INTERACT_NONE) return;
     StrId msg = S_WAIT;
     if (r & PET_INTERACT_BOND) msg = S_BOND_GAIN;
     else if (r & PET_INTERACT_JOY) msg = S_HAPPY_FB;
     snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(msg));
     petEventFeedbackUntil = millis() + 1600;
-    if (!pet.sleeping) sfxPlay((r & PET_INTERACT_BOND) ? SFX_HEART : SFX_TAP);
+    if (!pet.sleeping && audioMode() != SOUND_FULL)
+      sfxPlay((r & PET_INTERACT_BOND) ? SFX_HEART : SFX_TAP);
   }
 }
 
@@ -1187,18 +1270,12 @@ uint16_t lerp565(uint16_t a, uint16_t b, int i, int n) {
                     (((ag + (bg - ag) * i / n) << 5)) | (ab + (bb - ab) * i / n));
 }
 
-// hora del dia 0-23 (de la hora real cacheada cada 30s; 13 si no hay reloj)
 int sceneHour() {
-  uint32_t e = pet.lastSeenEpoch;
-  return e ? (int)((e / 3600) % 24) : 13;
+  return sceneHourFromEpoch(pet.lastSeenEpoch);
 }
 
 uint8_t currentDayPhase() {
-  int h = sceneHour();
-  if (h >= 6 && h < 12) return 0;
-  if (h >= 12 && h < 18) return 1;
-  if (h >= 18 && h < 22) return 2;
-  return 3;
+  return dayPhaseFromHour(sceneHour());
 }
 
 StrId dayPhaseTextId(uint8_t phase) {
@@ -1367,7 +1444,7 @@ void render() {
     return;
   }
   int h = sceneHour();
-  gNight = pet.sleeping || h < 6 || h >= 20;
+  gNight = isVisualNight(h, pet.sleeping);
   // drawScene cubre los 466x466 completos: sin fillScreen(NEGRO) previo para
   // que un flush DMA solapado nunca capture negro a medias (anti-parpadeo)
   drawScene(pet.isEgg() ? 0 : DEX_TBL[pet.speciesId].biome, millis(), gNight);
@@ -1386,6 +1463,8 @@ void render() {
   if (pet.isEgg()) {
     drawHeader(T(S_EGG_HDR), inkColor(), eggMsg());
     int s = 5, x = CX - 16 * s, y = PET_CY - 16 * s;
+    if (deadlineActive(millis(), eggWiggleUntil))
+      x += ((millis() / 40) % 2) ? 6 : -6;
     drawMap(SPR_EGG, SPRITE_H, x, y, s, false);
     if (pet.eggCracks() >= 1)
       for (auto &c : CRACK1) gfx->fillRect(x + c[0] * s, y + c[1] * s, s, s, INK_K);
@@ -1415,6 +1494,7 @@ void render() {
     drawPet();
     drawBath();
     drawPoops();
+    drawExpeditionHud();
     // panel inferior: base limpia para barras y botones sobre el paisaje
     gfx->fillRect(0, 312, 466, 154, gNight ? UI_BG_NIGHT : UI_BG_DAY);
     drawBars();
@@ -1434,14 +1514,27 @@ void render() {
     gfx->print("Zz");
   }
 
+  if (morningUntil) {
+    if (deadlineReached(millis(), morningUntil)) morningUntil = 0;
+    else {
+      const char *hello = T(S_GOOD_MORNING);
+      gfx->fillRoundRect(90, 78, 286, 44, 14, UI_WHITE);
+      gfx->drawRoundRect(90, 78, 286, 44, 14, inkColor());
+      gfx->setTextColor(inkColor());
+      gfx->setTextSize(2);
+      gfx->setCursor(CX - strlen(hello) * 6, 92);
+      gfx->print(hello);
+    }
+  }
+
   if (wildPromptUntil) {
-    if (millis() > wildPromptUntil) wildPromptUntil = 0;
+    if (deadlineReached(millis(), wildPromptUntil)) wildPromptUntil = 0;
     else drawWildPrompt();
   }
 
   // selector de comida
   if (feedMenuUntil) {
-    if (millis() > feedMenuUntil) {
+    if (deadlineReached(millis(), feedMenuUntil)) {
       feedMenuUntil = 0;
     } else {
       gfx->fillRoundRect(101, 288, 264, 64, 14, UI_WHITE);
@@ -1455,7 +1548,7 @@ void render() {
 
   // dialogo "soltar?" (pulsacion larga sobre el bicho)
   if (confirmUntil) {
-    if (millis() > confirmUntil) {
+    if (deadlineReached(millis(), confirmUntil)) {
       confirmUntil = 0;
     } else {
       gfx->fillRoundRect(94, 168, 278, 152, 16, UI_WHITE);
@@ -1478,7 +1571,7 @@ void render() {
 
   // dialogo de decision (evolucionar/mantener, despedirse/quedaros)
   if (choiceKind) {
-    if (millis() > choiceUntil) choiceKind = 0;
+    if (deadlineReached(millis(), choiceUntil)) choiceKind = 0;
     else drawChoiceDialog();
   }
 
@@ -1493,7 +1586,7 @@ void drawGameMenu() {
   gfx->drawRoundRect(78, 112, 310, 266, 18, UI_INK);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(3);
-  const char *title = "PLAY";
+  const char *title = T(S_PLAY);
   gfx->setCursor(CX - strlen(title) * 9, 124);
   gfx->print(title);
   const char *labels[5] = { T(S_GAME_BALL), T(S_GAME_CATCH), T(S_GAME_MEMO), T(S_GAME_CLEAN), T(S_GAME_TYPE) };
@@ -1768,7 +1861,7 @@ void memoPadSound(uint8_t pad) {
 void memoTap(int16_t x, int16_t y) {
   if (gameOverUntil) return;
   if (y < 72) { gameOpen = false; sfxPlay(SFX_TAP); return; }
-  if (memoShowing || memoFailUntil || millis() < memoTurnUntil) return;
+  if (memoShowing || memoFailUntil || deadlineActive(millis(), memoTurnUntil)) return;
   int pad = memoPadAt(x, y);
   if (pad < 0) return;
   if (pad != memoSeq[memoInput]) {
@@ -1903,7 +1996,7 @@ void startSack() {
 }
 
 void sackTap() {
-  if (millis() >= sackUntil) return;  // ya termino el tiempo
+  if (deadlineReached(millis(), sackUntil)) return;  // ya termino el tiempo
   sackHits++;
   sackShake = 16;  // sacude el saco
   if ((sackHits & 1) == 1) sfxPlay(SFX_PLAY);
@@ -1921,7 +2014,7 @@ void renderSack() {
 
   // pantalla de resultado
   if (sackOverUntil) {
-    if (now > sackOverUntil) { sackOpen = false; return; }
+    if (deadlineReached(now, sackOverUntil)) { sackOpen = false; return; }
     char b[20];
     snprintf(b, sizeof(b), T(S_HITS_FMT), sackHits);
     gfx->setTextColor(ink);
@@ -1951,7 +2044,7 @@ void renderSack() {
   }
 
   // se acabaron los 10 s: aplicar entrenamiento
-  if (now >= sackUntil) {
+  if (deadlineReached(now, sackUntil)) {
     sackNewHi = (sackHits > pet.strHi);
     sackGain = pet.trainStrength(sackHits);
     sfxPlay(sackNewHi ? SFX_MEDAL : SFX_PLAY);
@@ -2014,7 +2107,7 @@ void drawGameScene() {
 
 void drawGameResult(const char *recordFmt, uint16_t record, StrId gainFmt) {
   drawGameScene();
-  if (millis() > gameOverUntil) {
+  if (deadlineReached(millis(), gameOverUntil)) {
     gameOpen = false;
     return;
   }
@@ -2053,11 +2146,11 @@ void renderCatchGame() {
     drawGameResult(T(S_RECORD_FMT), pet.catchHi, S_SPD_GAIN_FMT);
     return;
   }
-  if (now >= catchUntil || gameMisses >= 3) {
+  if (deadlineReached(now, catchUntil) || gameMisses >= 3) {
     finishCatchGame();
     return;
   }
-  if (now > catchTargetUntil) {
+  if (deadlineReached(now, catchTargetUntil)) {
     if (++gameMisses >= 3) {
       finishCatchGame();
       return;
@@ -2100,14 +2193,14 @@ void renderCatchGame() {
 void stepMemoGame() {
   uint32_t now = millis();
   if (memoFailUntil) {
-    if (now >= memoFailUntil) {
+    if (deadlineReached(now, memoFailUntil)) {
       memoFailUntil = 0;
       memoHintPad = -1;
       finishMemoGame();
     }
     return;
   }
-  if (!memoShowing || now < memoNextAt) return;
+  if (!memoShowing || deadlineActive(now, memoNextAt)) return;
   if (memoActivePad >= 0) {
     memoActivePad = -1;
     memoShow++;
@@ -2158,7 +2251,7 @@ void renderMemoGame() {
       int pulse = 56 + (int)((millis() / 70) % 5);
       gfx->drawCircle(px[i], py[i], pulse, col[i]);
     }
-    if (i == memoFlashPad && millis() < memoFlashUntil) {
+    if (i == memoFlashPad && deadlineActive(millis(), memoFlashUntil)) {
       gfx->drawCircle(px[i], py[i], 60, memoFlashGood ? UI_BAR_OK : UI_BAR_BAD);
       gfx->drawCircle(px[i], py[i], 64, memoFlashGood ? UI_BAR_OK : UI_BAR_BAD);
     }
@@ -2184,11 +2277,11 @@ void renderCleanGame() {
     drawGameResult(T(S_RECORD_FMT), pet.cleanHi, S_HYG_GAIN_FMT);
     return;
   }
-  if (now >= cleanUntil || gameMisses >= 3) {
+  if (deadlineReached(now, cleanUntil) || gameMisses >= 3) {
     finishCleanGame();
     return;
   }
-  if (now >= cleanSpawnAt) {
+  if (deadlineReached(now, cleanSpawnAt)) {
     if (cleanActive < 4) spawnCleanSpot();
     cleanSpawnAt = now + 720 - (gameScore > 12 ? 260 : gameScore * 20);
   }
@@ -2234,7 +2327,7 @@ void renderTypeGame() {
     drawGameResult(T(S_RECORD_FMT), pet.typeHi, S_ATK_GAIN_FMT);
     return;
   }
-  if (now >= typeUntil) {
+  if (deadlineReached(now, typeUntil)) {
     if (++gameMisses >= 3) {
       finishTypeGame();
       return;
@@ -2315,7 +2408,7 @@ void renderGame() {
 
   if (gameOverUntil) {
     drawGameScene();
-    if (millis() > gameOverUntil) {
+    if (deadlineReached(millis(), gameOverUntil)) {
       gameOpen = false;
       return;
     }
@@ -2438,9 +2531,9 @@ void maybeOfferWildEncounter(uint32_t now) {
   if (wildPromptUntil) return;
   if (now - lastWildCheck < WILD_CHECK_MS) return;
   lastWildCheck = now;
-  if (now < nextWildEligible) return;
+  if (deadlineActive(now, nextWildEligible)) return;
   if (!mainScreenReadyForWild()) return;
-  int16_t cand = pickWildSpecies((uint8_t)random(100));
+  int16_t cand = pickWildSpecies((uint8_t)random(100), currentDayPhase());
   uint8_t phase = currentDayPhase();
   uint8_t chance = (phase == 3) ? 4 : (phase == 0 ? 7 : 8);
   if (phase == 3 && cand >= 1 && cand <= DEX_COUNT) {
@@ -2475,12 +2568,12 @@ void maybeOfferPetEvent(uint32_t now) {
     return;
   }
   if (petEventUntil) {
-    if (now > petEventUntil) petEventUntil = 0;
+    if (deadlineReached(now, petEventUntil)) petEventUntil = 0;
     return;
   }
   if (now - lastPetEventCheck < PET_EVENT_CHECK_MS) return;
   lastPetEventCheck = now;
-  if (now < nextPetEventEligible) return;
+  if (deadlineActive(now, nextPetEventEligible)) return;
   if (!mainScreenReadyForPetEvent()) return;
   uint8_t phase = currentDayPhase();
   uint8_t chance = (phase == 0) ? 14 : (phase == 3 ? 8 : 10);
@@ -2511,6 +2604,31 @@ void acceptPetEvent() {
   sfxPlay(type == PET_EVENT_BERRY ? SFX_EAT : (type == PET_EVENT_SPARKLE ? SFX_EVENT_SPARKLE : SFX_HEART));
 }
 
+bool mainScreenReadyForShake() {
+  if (screenOff || pet.awaitingStarter() || pet.isEgg() || pet.sleeping || pet.ceremony) return false;
+  if (battleOpen || gameOpen || gameMenuOpen || sackOpen || galleryOpen || kbOpen || clockOpen || helpOpen) return false;
+  if (feedMenuUntil || confirmUntil || choiceKind || bathUntil) return false;
+  if (pet.evolving()) return false;
+  return true;
+}
+
+void maybeOfferMorning(uint32_t now) {
+  if (morningUntil) {
+    if (deadlineReached(now, morningUntil)) morningUntil = 0;
+    return;
+  }
+  if (screenOff || pet.awaitingStarter() || pet.ceremony) return;
+  if (battleOpen || gameOpen || gameMenuOpen || sackOpen || cardOpen || galleryOpen || kbOpen || clockOpen || helpOpen) return;
+  if (feedMenuUntil || confirmUntil || choiceKind || bathUntil || wildPromptUntil || petEventUntil) return;
+  if (currentDayPhase() != 0) return;
+  if (!pet.takeMorningGreeting()) return;
+  morningUntil = now + 2500UL;
+  if (!pet.sleeping && !pet.isEgg() && audioMode() == SOUND_FULL)
+    speciesChirpPlay(pet.speciesId, true);
+  else if (!pet.sleeping && !pet.isEgg())
+    sfxPlay(SFX_HEART);
+}
+
 void closeBattle() {
   battleOpen = false;
   battleResolved = false;
@@ -2536,7 +2654,7 @@ void startBattleWith(int16_t forcedDex, uint8_t forcedLevel) {
   } else {
     uint8_t speciesRoll = random(100);
     uint8_t levelRoll = random(100);
-    battleDex = pickWildSpecies(speciesRoll);
+    battleDex = pickWildSpecies(speciesRoll, currentDayPhase());
     battleLevel = wildLevelFor(pet.level(), levelRoll);
   }
   battlePlayer = petBattleStats();
@@ -2836,8 +2954,8 @@ void drawWildPrompt() {
 
 void drawPetEvent() {
   uint32_t now = millis();
-  if (petEventUntil && now > petEventUntil) petEventUntil = 0;
-  if (!petEventUntil && (!petEventFeedbackUntil || now > petEventFeedbackUntil)) return;
+  if (petEventUntil && deadlineReached(now, petEventUntil)) petEventUntil = 0;
+  if (!petEventUntil && (!petEventFeedbackUntil || deadlineReached(now, petEventFeedbackUntil))) return;
 
   int16_t ex = 366, ey = 286;
   if (petEventUntil) {
@@ -2856,7 +2974,7 @@ void drawPetEvent() {
       gfx->fillCircle(ex + 16, ey + 10, 4, UI_WHITE);
     }
   }
-  if (petEventFeedbackUntil && now <= petEventFeedbackUntil) {
+  if (petEventFeedbackUntil && deadlineActive(now, petEventFeedbackUntil)) {
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(2);
     gfx->setCursor(CX - strlen(petEventMsg) * 6, 292);
@@ -2899,6 +3017,7 @@ void renderBattle() {
   uint16_t enemyCur = battleRun.enemyHp;
   drawBattleHpBar(28, 110, playerCur, playerMax, UI_BAR_OK);
   drawBattleHpBar(288, 110, enemyCur, enemyMax, UI_BAR_BAD);
+  if (pet.isCaught(battleDex)) drawCaughtBattleMarker(272, 119);
   drawTypeChips(28, 130, mine, false);
   drawTypeChips(438, 130, wild, true);
 
@@ -2972,7 +3091,7 @@ void renderBattle() {
     }
   } else {
     char roundBuf[14];
-    snprintf(roundBuf, sizeof(roundBuf), "R%u", battleRun.round + 1);
+    snprintf(roundBuf, sizeof(roundBuf), T(S_ROUND_SHORT_FMT), battleRun.round + 1);
     gfx->setTextColor(ink);
     gfx->setTextSize(2);
     gfx->setCursor(32, 318);
@@ -3125,8 +3244,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Rapido: menos dano.", "Rival esquiva poco.", "Recibes algo menos dano.", "Fuerte: mas dano.", "Riesgo y contra mayor.", "No siempre conviene." },
     { "Esquivar evita dano.", "Si sale: Contra listo.", "Prox ataque pega mas.", "Ruhe/Descanso cura 2x.", "Tambien da Guardia.", "Tipos suben/bajan dano." },
     { "Pokedex: desliza lado.", "Criado y atrapado cuentan.", "10/25/50/100/151: marcos.", "Perfil: elige marco.", "Detalle conocido: chirp.", "SON TODO: toca pet." },
-    { "Diario da metas diarias.", "Eventos salen raros.", "Batallas salvajes opc.", "Captura tras ganar.", "Rachas y medallas quedan.", "Sonido se ajusta abajo." },
-    { "Expedicion: 15/30/60 min.", "Cuesta energia al salir.", "El bicho sigue disponible.", "Buen cuidado mejora premio.", "Recoge 1 objeto al volver.", "Objetos max. x3." },
+    { "Diario da metas diarias.", "Eventos salen raros.", "Batallas salvajes opc.", "Captura tras ganar.", "Rachas y medallas quedan.", "Agita: juega. Paseo da FEL." },
+    { "Expedicion: 15/30/60 min.", "Cuesta energia al salir.", "El bicho sigue disponible.", "Buen cuidado mejora premio.", "Recoge 1 objeto al volver.", "Chip abre esta tarjeta." },
   },
   {
     { "Low food = slip-up.", "Play raises joy.", "Bath cleans dirt.", "Petting gives joy/bond.", "High weight slows you.", "Candy cheers but fattens." },
@@ -3135,8 +3254,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Quick: lower damage.", "Enemy dodges less.", "You take less damage.", "Heavy: more damage.", "More risk/counterplay.", "Not always best." },
     { "Dodge avoids damage.", "Success: Counter ready.", "Next attack hits harder.", "Rest heals only 2x.", "Rest also gives Guard.", "Types change damage." },
     { "Pokedex: side swipe.", "Raised and caught count.", "10/25/50/100/151: frames.", "Profile: choose frame.", "Known detail: species chirp.", "SND ALL: tap pet." },
-    { "Daily gives small goals.", "Events appear rarely.", "Wild battles are optional.", "Catch after winning.", "Streaks/medals persist.", "Sound is in settings." },
-    { "Expedition: 15/30/60 min.", "Energy is spent at start.", "Pet stays available.", "Care and bond improve finds.", "Claim 1 item when back.", "Items hold max x3." },
+    { "Daily gives small goals.", "Events appear rarely.", "Wild battles are optional.", "Catch after winning.", "Streaks/medals persist.", "Shake to play. Walk gives JOY." },
+    { "Expedition: 15/30/60 min.", "Energy is spent at start.", "Pet stays available.", "Care and bond improve finds.", "Claim 1 item when back.", "Chip opens this card." },
   },
   {
     { "Faim basse = erreur.", "Jouer monte la joie.", "Bain nettoie.", "Caresse donne lien/joie.", "Poids haut ralentit.", "Bonbon rend gros." },
@@ -3145,8 +3264,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Rapide: degats bas.", "Ennemi esquive moins.", "Tu subis moins.", "Fort: degats hauts.", "Risque plus grand.", "Pas toujours meilleur." },
     { "Esquive evite degats.", "Succes: Contre pret.", "Prochaine attaque plus.", "Repos soigne 2 fois.", "Repos donne Garde.", "Types changent degats." },
     { "Pokedex: glisse cote.", "Eleve et capture comptent.", "10/25/50/100/151: cadres.", "Profil: choisis cadre.", "Detail connu: chirp.", "SON TOUT: touche pet." },
-    { "Quotidien donne buts.", "Events rares.", "Combats sauvages option.", "Capture apres victoire.", "Series/medailles restent.", "Son dans reglages." },
-    { "Expedition: 15/30/60 min.", "Energie payee au depart.", "Le pet reste disponible.", "Soin/lien aide le butin.", "Prends 1 objet au retour.", "Objets max x3." },
+    { "Quotidien donne buts.", "Events rares.", "Combats sauvages option.", "Capture apres victoire.", "Series/medailles restent.", "Secoue: joue. Marche = JOIE." },
+    { "Expedition: 15/30/60 min.", "Energie payee au depart.", "Le pet reste disponible.", "Soin/lien aide le butin.", "Prends 1 objet au retour.", "Chip ouvre cette carte." },
   },
   {
     { "Food 0 = Patzer.", "Spielen hebt Freude.", "Bad reinigt Hygiene.", "Streicheln gibt Bond.", "Hohes Gewicht bremst.", "Candy freut, macht dick." },
@@ -3155,8 +3274,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Schnell: weniger Schaden.", "Gegner weicht selten aus.", "Du kassierst weniger.", "Stark: mehr Schaden.", "Mehr Risiko/Gegendruck.", "Nicht immer beste Wahl." },
     { "Ausweichen meidet Schaden.", "Klappt es: Konter bereit.", "Naechster Angriff staerker.", "Ruhen heilt nur 2x.", "Ruhen gibt auch Schutz.", "Typen aendern Schaden." },
     { "Pokedex: seitlich wischen.", "Aufz./gefangen zaehlen.", "10/25/50/100/151: Rahmen.", "Profil: Rahmen waehlen.", "Bekanntes Detail: Chirp.", "TON VIEL: Pet tippen." },
-    { "Taeglich gibt Ziele.", "Events sind selten.", "Wildkampf ist optional.", "Fangen nach Sieg.", "Serien/Medaillen bleiben.", "Ton unten einstellen." },
-    { "Expedition: 15/30/60 Min.", "Kostet beim Start Energie.", "Pet bleibt verfuegbar.", "Pflege/Bond verbessert Fund.", "Fund danach einsammeln.", "Items maximal x3." },
+    { "Taeglich gibt Ziele.", "Events sind selten.", "Wildkampf ist optional.", "Fangen nach Sieg.", "Serien/Medaillen bleiben.", "Schuetteln spielt. Gehen = JOY." },
+    { "Expedition: 15/30/60 Min.", "Kostet beim Start Energie.", "Pet bleibt verfuegbar.", "Pflege/Bond verbessert Fund.", "Fund danach einsammeln.", "Chip oeffnet diese Karte." },
   },
   {
     { "Cibo 0 = errore.", "Gioca aumenta gioia.", "Bagno pulisce.", "Carezza da legame.", "Peso alto rallenta.", "Dolce rallegra, ingrassa." },
@@ -3165,8 +3284,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Rapido: meno danni.", "Nemico schiva meno.", "Subisci meno danni.", "Forte: piu danni.", "Piu rischio.", "Non sempre migliore." },
     { "Schiva evita danni.", "Successo: contro pronto.", "Prox attacco piu forte.", "Riposo cura solo 2x.", "Riposo da Guardia.", "Tipi cambiano danni." },
     { "Pokedex: scorri lato.", "Allevato e preso contano.", "10/25/50/100/151: cornici.", "Profilo: scegli cornice.", "Dettaglio noto: chirp.", "SON TUTTO: tocca pet." },
-    { "Quotidiano da obiettivi.", "Eventi rari.", "Lotte selvatiche opz.", "Cattura dopo vittoria.", "Serie/medaglie restano.", "Audio nei settaggi." },
-    { "Spedizione: 15/30/60 min.", "Energia spesa alla partenza.", "Il pet resta disponibile.", "Cura/legame migliora premio.", "Ritira 1 oggetto al ritorno.", "Oggetti max x3." },
+    { "Quotidiano da obiettivi.", "Eventi rari.", "Lotte selvatiche opz.", "Cattura dopo vittoria.", "Serie/medaglie restano.", "Scuoti: gioca. Cammina = GIO." },
+    { "Spedizione: 15/30/60 min.", "Energia spesa alla partenza.", "Il pet resta disponibile.", "Cura/legame migliora premio.", "Ritira 1 oggetto al ritorno.", "Chip apre questa carta." },
   },
   {
     { "Comida 0 = falha.", "Jogar sobe alegria.", "Banho limpa.", "Carinho da vinculo.", "Peso alto atrasa.", "Doce alegra, engorda." },
@@ -3175,8 +3294,8 @@ static const char *const HELP_LINES[LANG_COUNT][HELP_PAGE_COUNT][HELP_LINE_COUNT
     { "Rapido: dano menor.", "Rival desvia menos.", "Voce recebe menos.", "Forte: dano maior.", "Mais risco.", "Nem sempre melhor." },
     { "Desviar evita dano.", "Sucesso: contra pronto.", "Prox ataque mais forte.", "Descanso cura so 2x.", "Descanso da Guarda.", "Tipos mudam dano." },
     { "Pokedex: deslize lado.", "Criado e apanhado contam.", "10/25/50/100/151: molduras.", "Perfil: escolha moldura.", "Detalhe conhecido: chirp.", "SOM TODO: toque pet." },
-    { "Diario da metas.", "Eventos sao raros.", "Batalha selvagem opc.", "Captura apos vitoria.", "Series/medalhas ficam.", "Som nos ajustes." },
-    { "Expedicao: 15/30/60 min.", "Energia gasta ao sair.", "Pet fica disponivel.", "Cuidado/laco melhora premio.", "Recolhe 1 item ao voltar.", "Itens max x3." },
+    { "Diario da metas.", "Eventos sao raros.", "Batalha selvagem opc.", "Captura apos vitoria.", "Series/medalhas ficam.", "Agita: joga. Andar da ALE." },
+    { "Expedicao: 15/30/60 min.", "Energia gasta ao sair.", "Pet fica disponivel.", "Cuidado/laco melhora premio.", "Recolhe 1 item ao voltar.", "Chip abre este cartao." },
   },
 };
 
@@ -3328,12 +3447,16 @@ void renderClock() {
   char fwLine[34];
   snprintf(fwLine, sizeof(fwLine), "v%s", FW_VERSION);
   drawStatusLine(334, "FW", fwLine, UI_INK);
-  drawStatusLine(348, "SAVE", pet.saveLoadedFromNvs ? "OK" : "NEW", pet.saveLoadedFromNvs ? UI_BAR_OK : UI_BAR_WARN);
+  drawStatusLine(348, "SAVE", pet.saveLoadedFromNvs ? T(S_OK) : T(S_STATUS_NEW), pet.saveLoadedFromNvs ? UI_BAR_OK : UI_BAR_WARN);
   drawStatusLine(362, "SD", sdReady ? "OK" : "NO", sdReady ? UI_BAR_OK : UI_BAR_WARN);
-  drawStatusLine(376, "SPR", (pmd.loaded || mon.loaded) ? "OK" : "FLASH/NO", (pmd.loaded || mon.loaded) ? UI_BAR_OK : UI_BAR_WARN);
+  drawStatusLine(376, "SPR", (pmd.loaded || mon.loaded) ? T(S_OK) : T(S_STATUS_FLASH_NO), (pmd.loaded || mon.loaded) ? UI_BAR_OK : UI_BAR_WARN);
   char petLine[32];
-  if (pet.isEgg()) snprintf(petLine, sizeof(petLine), "EGG");
-  else snprintf(petLine, sizeof(petLine), "#%d LV%u", pet.speciesId, pet.level());
+  if (pet.isEgg()) snprintf(petLine, sizeof(petLine), "%s", T(S_EGG_HDR));
+  else {
+    char level[12];
+    snprintf(level, sizeof(level), T(S_LEVEL_SHORT_FMT), pet.level());
+    snprintf(petLine, sizeof(petLine), "#%d %s", pet.speciesId, level);
+  }
   drawStatusLine(390, "PET", petLine, UI_INK);
 
   gfx->fillRoundRect(96, 404, 110, 40, 13, UI_WHITE);
@@ -3348,7 +3471,7 @@ void renderClock() {
   gfx->setTextColor(UI_BG_DAY);
   gfx->setTextSize(3);
   gfx->setCursor(230 + (156 - 36) / 2, 414);
-  gfx->print("OK");
+  gfx->print(T(S_OK));
   gfx->flush();
 }
 
@@ -3434,27 +3557,63 @@ uint16_t collectionFrameColor(uint8_t frame) {
   return COLORS[frame < sizeof(COLORS) / sizeof(COLORS[0]) ? frame : 0];
 }
 
-void drawCollectionFrame(int cx, int cy, int radius, uint8_t frame) {
-  if (frame == 0) return;
+void drawCaughtBattleMarker(int x, int y) {
+  // Kleiner Pokeball links vom Gegner-HP-Balken. Er braucht keinen Text und
+  // bleibt deshalb auch bei langen, lokalisierten Gegnernamen sichtbar.
+  gfx->fillCircle(x, y, 9, UI_BAR_BAD);
+  gfx->fillRect(x - 8, y, 16, 8, UI_WHITE);
+  gfx->drawCircle(x, y, 9, UI_INK);
+  gfx->drawLine(x - 8, y, x + 8, y, UI_INK);
+  gfx->fillCircle(x, y, 3, UI_INK);
+  gfx->fillCircle(x, y, 1, UI_WHITE);
+}
+
+static void drawFrameCorner(int x, int y, int sx, int sy, uint16_t color, uint8_t len) {
+  gfx->drawLine(x, y, x + sx * len, y, color);
+  gfx->drawLine(x, y, x, y + sy * len, color);
+}
+
+void drawCollectionFrame(uint8_t frame) {
+  // Rahmen liegen hinter dem Portrait: Der Sprite bleibt voll sichtbar und
+  // die frueheren ueberlagernden Kreise koennen nicht wieder auftauchen.
+  if (frame >= pet.unlockedCollectionFrameCount()) frame = 0;
+  const int left = 108, right = 358, top = 94, bottom = 302;
   uint16_t color = collectionFrameColor(frame);
-  gfx->drawCircle(cx, cy, radius, color);
-  if (frame >= 2) gfx->drawCircle(cx, cy, radius - 8, color);
+  uint8_t len = 22 + frame * 3;
+  drawFrameCorner(left, top, 1, 1, color, len);
+  drawFrameCorner(right, top, -1, 1, color, len);
+  drawFrameCorner(left, bottom, 1, -1, color, len);
+  drawFrameCorner(right, bottom, -1, -1, color, len);
+
+  if (frame >= 1) {
+    uint16_t accent = frame == 4 ? UI_BAR_WARN : color;
+    gfx->fillCircle(left + len + 7, top, 3, accent);
+    gfx->fillCircle(right - len - 7, top, 3, accent);
+    gfx->fillCircle(left + len + 7, bottom, 3, accent);
+    gfx->fillCircle(right - len - 7, bottom, 3, accent);
+  }
+  if (frame >= 2) {
+    uint8_t inner = len - 6;
+    drawFrameCorner(left + 6, top + 6, 1, 1, color, inner);
+    drawFrameCorner(right - 6, top + 6, -1, 1, color, inner);
+    drawFrameCorner(left + 6, bottom - 6, 1, -1, color, inner);
+    drawFrameCorner(right - 6, bottom - 6, -1, -1, color, inner);
+  }
   if (frame >= 3) {
-    gfx->fillCircle(cx, cy - radius, 4, color);
-    gfx->fillCircle(cx + radius, cy, 4, color);
-    gfx->fillCircle(cx, cy + radius, 4, color);
-    gfx->fillCircle(cx - radius, cy, 4, color);
+    gfx->fillRect(CX - 3, top - 3, 6, 6, color);
+    gfx->fillRect(CX - 3, bottom - 3, 6, 6, color);
   }
   if (frame >= 4) {
-    gfx->drawLine(cx - radius + 12, cy - radius + 12, cx + radius - 12, cy + radius - 12, color);
-    gfx->drawLine(cx + radius - 12, cy - radius + 12, cx - radius + 12, cy + radius - 12, color);
+    gfx->drawLine(left + 2, top + len + 10, left + 10, top + len + 2, UI_BAR_WARN);
+    gfx->drawLine(right - 2, top + len + 10, right - 10, top + len + 2, UI_BAR_WARN);
+    gfx->drawLine(left + 2, bottom - len - 10, left + 10, bottom - len - 2, UI_BAR_WARN);
+    gfx->drawLine(right - 2, bottom - len - 10, right - 10, bottom - len - 2, UI_BAR_WARN);
   }
   if (frame >= 5) {
-    gfx->drawCircle(cx, cy, radius + 8, color);
-    gfx->fillCircle(cx, cy - radius - 8, 3, UI_BAR_WARN);
-    gfx->fillCircle(cx + radius + 8, cy, 3, UI_BAR_WARN);
-    gfx->fillCircle(cx, cy + radius + 8, 3, UI_BAR_WARN);
-    gfx->fillCircle(cx - radius - 8, cy, 3, UI_BAR_WARN);
+    gfx->fillCircle(CX, top - 12, 3, UI_BAR_WARN);
+    gfx->fillCircle(CX, bottom + 12, 3, UI_BAR_WARN);
+    gfx->fillCircle(left - 12, CY, 3, UI_BAR_WARN);
+    gfx->fillCircle(right + 12, CY, 3, UI_BAR_WARN);
   }
 }
 
@@ -3491,8 +3650,7 @@ void renderCardProfile() {
     gfx->printf("(%s)", speciesName);
   }
 
-  // retrato grande animado mit dem aktuell ausgewaehlten Sammlerrahmen
-  drawCollectionFrame(CX, 206, 98, pet.collectionFrame);
+  drawCollectionFrame(pet.collectionFrame);
   if (pmd.loaded) drawPmdAct(PMD_IDLE, CX, 206, millis(), true, false, 4);
 
   // racha con llama
@@ -4007,6 +4165,65 @@ uint32_t expeditionNowEpoch() {
   return nowEpoch ? nowEpoch : pet.lastSeenEpoch;
 }
 
+static const int EXP_HUD_X = 310;
+static const int EXP_HUD_Y = 106;
+static const int EXP_HUD_W = 112;
+static const int EXP_HUD_H = 34;
+
+bool expeditionHudVisible() {
+  if (pet.isEgg() || pet.ceremony || cardOpen || gameOpen || sackOpen || battleOpen ||
+      galleryOpen || kbOpen || clockOpen || helpOpen) return false;
+  if (gameMenuOpen || feedMenuUntil || confirmUntil || choiceKind || bathUntil ||
+      petEventUntil || wildPromptUntil) return false;
+  return pet.expeditionHudState(expeditionNowEpoch()) != EXP_HUD_HIDDEN;
+}
+
+bool inExpeditionHudHit(int16_t x, int16_t y) {
+  return expeditionHudVisible() && x >= EXP_HUD_X && x <= EXP_HUD_X + EXP_HUD_W &&
+         y >= EXP_HUD_Y && y <= EXP_HUD_Y + EXP_HUD_H;
+}
+
+void openExpeditionCard() {
+  cardOpen = true;
+  cardPage = 7;
+  expeditionTrainChoiceOpen = false;
+  cardDirty = true;
+  lockTouchBrief();
+  sfxPlay(SFX_MENU);
+}
+
+void drawExpeditionHud() {
+  if (!expeditionHudVisible()) return;
+
+  uint32_t nowEpoch = expeditionNowEpoch();
+  ExpeditionHudState state = pet.expeditionHudState(nowEpoch);
+  uint16_t color = state == EXP_HUD_READY ? UI_BAR_OK :
+                   state == EXP_HUD_BAG ? UI_BAR_WARN : 0x4C98;
+  char label[18];
+  if (state == EXP_HUD_ACTIVE) {
+    uint32_t left = (pet.expeditionEndEpoch - nowEpoch + 59UL) / 60UL;
+    snprintf(label, sizeof(label), "%s %lum", T(S_EXP_HUD_TOUR), (unsigned long)left);
+  } else if (state == EXP_HUD_READY) {
+    snprintf(label, sizeof(label), "%s", T(S_EXP_READY));
+  } else {
+    snprintf(label, sizeof(label), "%s x%u", T(S_EXP_HUD_BAG), pet.expeditionItemCount());
+  }
+
+  gfx->fillRoundRect(EXP_HUD_X, EXP_HUD_Y, EXP_HUD_W, EXP_HUD_H, 8, UI_WHITE);
+  gfx->drawRoundRect(EXP_HUD_X, EXP_HUD_Y, EXP_HUD_W, EXP_HUD_H, 8, color);
+  gfx->fillCircle(EXP_HUD_X + 17, EXP_HUD_Y + 17, 9, color);
+  gfx->setTextColor(UI_WHITE);
+  gfx->setTextSize(1);
+  gfx->setCursor(EXP_HUD_X + 14, EXP_HUD_Y + 12);
+  if (state == EXP_HUD_READY) gfx->print("!");
+  else if (state == EXP_HUD_BAG) gfx->print("+");
+  else gfx->print(">");
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(1);
+  gfx->setCursor(EXP_HUD_X + 31, EXP_HUD_Y + 13);
+  gfx->print(label);
+}
+
 void drawExpeditionItem(int x, int y, ExpeditionItem item) {
   const int w = 172, h = 54;
   uint8_t count = pet.itemCounts[item];
@@ -4434,7 +4651,7 @@ void renderGallery() {
   gfx->print("POKEDEX");
 
   char head[28];
-  snprintf(head, sizeof(head), "R:%u C:%u", pet.registeredCount(), pet.caughtCount());
+  snprintf(head, sizeof(head), T(S_RAISED_CAUGHT_FMT), pet.registeredCount(), pet.caughtCount());
   gfx->setTextSize(2);
   gfx->setCursor(CX - strlen(head) * 6, 54);
   gfx->print(head);
@@ -4811,8 +5028,9 @@ void startBath() {
 }
 
 void drawBath() {
+  if (!bathUntil) return;
   uint32_t now = millis();
-  if (now > bathUntil) {
+  if (deadlineReached(now, bathUntil)) {
     bathUntil = 0;
     if (bathPending) {
       bathPending = false;
@@ -4903,7 +5121,8 @@ void behNext() {
   uint32_t now = millis();
   beh.t0 = now;
   int r = random(100);
-  if (r < 35 && (pmd.has(PMD_WALKL) || pmd.has(PMD_WALKR))) {
+  uint8_t walkChance = (currentDayPhase() == 3) ? 10 : 35;
+  if (r < walkChance && (pmd.has(PMD_WALKL) || pmd.has(PMD_WALKR))) {
     beh.mode = 1;  // paseo
     beh.targetX = 150 + random(176);
     beh.until = now + 15000;
@@ -4950,7 +5169,7 @@ void drawPetPMD() {
     act = PMD_HURT;
   } else {
     // contento: el planificador decide (idle / paseo / gesto)
-    if (now > beh.until) behNext();
+    if (deadlineReached(now, beh.until)) behNext();
     if (beh.mode == 1) {
       float d = beh.targetX - beh.x;
       if (fabsf(d) < 4) {

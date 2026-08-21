@@ -4,6 +4,8 @@
 
 #include "pet.h"
 #include "species_chirp.h"
+#include "time_utils.h"
+#include "dayphase.h"
 
 uint32_t gMockMillis = 0;
 SerialMock Serial;
@@ -67,14 +69,43 @@ static void testEvolutionRequiresLevelAndHealthyStats() {
   pet.fullness = 39;
 
   EXPECT_TRUE(!pet.canEvolveNow());
+  EXPECT_TRUE(pet.wantEvolveButton());
 
   pet.fullness = 40;
   EXPECT_TRUE(pet.canEvolveNow());
+  EXPECT_TRUE(pet.wantEvolveButton());
 
   pet.evolve();
   EXPECT_EQ(pet.prevSpeciesId, 4);
   EXPECT_EQ(pet.speciesId, 5);
   EXPECT_TRUE(pet.isRegistered(5));
+}
+
+static void testEvolveOfferStaysWhenStatsDipAndReoffersAtCap() {
+  Pet pet = hatchedPet(56);  // Menki
+  pet.fullness = pet.joy = pet.energy = pet.hygiene = 80;
+  pet.ageMinutes = 26 * MINUTES_PER_LEVEL;  // Lv.27
+  EXPECT_TRUE(!pet.evolutionUnlocked());
+  EXPECT_TRUE(!pet.wantEvolveButton());
+
+  pet.ageMinutes = 27 * MINUTES_PER_LEVEL;  // Lv.28
+  pet.joy = 10;
+  EXPECT_TRUE(pet.evolutionUnlocked());
+  EXPECT_TRUE(pet.wantEvolveButton());
+  EXPECT_TRUE(!pet.canEvolveNow());
+
+  pet.declineEvolve();
+  EXPECT_TRUE(!pet.wantEvolveButton());
+  pet.ageMinutes = 28 * MINUTES_PER_LEVEL;  // Lv.29
+  pet.joy = 80;
+  EXPECT_TRUE(pet.wantEvolveButton());
+  EXPECT_TRUE(pet.canEvolveNow());
+
+  pet.ageMinutes = 99UL * MINUTES_PER_LEVEL;  // Lv.100
+  pet.declineEvolve();
+  EXPECT_TRUE(!pet.wantEvolveButton());
+  pet.ageMinutes += 1440;
+  EXPECT_TRUE(pet.wantEvolveButton());
 }
 
 static void testCareMistakeDelaysEvolution() {
@@ -374,12 +405,12 @@ static void testSpeciesChirpProfilesAreValidAndIndividual() {
   for (int16_t dex = 1; dex <= 151; dex++) {
     SpeciesChirpProfile profile{};
     EXPECT_TRUE(speciesChirpProfile(dex, &profile));
-    EXPECT_EQ(profile.count, 3);
+    EXPECT_EQ(profile.count, 4);
     for (uint8_t i = 0; i < profile.count; i++) {
       EXPECT_TRUE(profile.notes[i].frequency >= 140 && profile.notes[i].frequency <= 2600);
-      EXPECT_TRUE(profile.notes[i].durationMs >= 30 && profile.notes[i].durationMs <= 100);
-      EXPECT_TRUE(profile.notes[i].volume <= 100);
-      EXPECT_TRUE(profile.notes[i].wave <= CHIRP_NOISE);
+      EXPECT_TRUE(profile.notes[i].durationMs >= 50 && profile.notes[i].durationMs <= 110);
+      EXPECT_TRUE(profile.notes[i].volume >= 70 && profile.notes[i].volume <= 100);
+      EXPECT_TRUE(profile.notes[i].wave <= CHIRP_SOFT);
     }
     uint16_t signature = profile.notes[2].frequency;
     EXPECT_TRUE(dex == 1 || signature != previousSignature);
@@ -413,6 +444,71 @@ static void testPetInteractionCooldownAndPersonalityBonus() {
   uint8_t later = pet.interactPet(false);
   EXPECT_TRUE((later & PET_INTERACT_JOY) != 0);
   EXPECT_EQ(pet.joy, 56);
+}
+
+static void testNewPetResetsInteractionAndDecisionDeferrals() {
+  Pet pet = hatchedPet(4);
+  pet.ageMinutes = 500;
+  EXPECT_TRUE(pet.interactPet(false) != PET_INTERACT_NONE);
+  pet.ageMinutes = 15 * MINUTES_PER_LEVEL;
+  pet.declineEvolve();
+
+  pet.newEgg();
+  pet.chooseStarter(4);
+  pet.eggTap();
+  pet.eggTap();
+  pet.eggTap();
+  pet.ageMinutes = 1;
+  EXPECT_TRUE(pet.interactPet(false) != PET_INTERACT_NONE);
+  pet.ageMinutes = 15 * MINUTES_PER_LEVEL;
+  EXPECT_TRUE(pet.wantEvolveButton());
+
+  pet.newEgg();
+  pet.chooseStarter(6);
+  pet.eggTap();
+  pet.eggTap();
+  pet.eggTap();
+  pet.ageMinutes = FAREWELL_AGE_MIN;
+  pet.declineFarewell();
+  pet.newEgg();
+  pet.chooseStarter(6);
+  pet.eggTap();
+  pet.eggTap();
+  pet.eggTap();
+  pet.ageMinutes = FAREWELL_AGE_MIN;
+  EXPECT_TRUE(pet.wantFarewellButton());
+}
+
+static void testLevelCapsAtOneHundred() {
+  Pet pet = hatchedPet(4);
+  pet.ageMinutes = 99UL * MINUTES_PER_LEVEL;
+  EXPECT_EQ(pet.level(), 100);
+  pet.ageMinutes = 300UL * MINUTES_PER_LEVEL;
+  EXPECT_EQ(pet.level(), 100);
+}
+
+static void testCeremonyCompletesToNewEgg() {
+  Pet pet = hatchedPet(6);
+  gMockMillis = 100;
+  pet.startFarewell();
+  EXPECT_EQ(pet.ceremony, CER_FAREWELL);
+  gMockMillis += CEREMONY_MS + 1;
+  EXPECT_TRUE(pet.update(gMockMillis));
+  EXPECT_TRUE(pet.isEgg());
+  EXPECT_EQ(pet.lastEnd, CER_FAREWELL);
+  gMockMillis = 0;
+}
+
+static void testDeadlineHelpersHandleMillisRollover() {
+  uint32_t beforeWrap = UINT32_MAX - 20U;
+  uint32_t deadline = beforeWrap + 40U;
+  EXPECT_TRUE(deadlineActive(beforeWrap, deadline));
+  EXPECT_TRUE(!deadlineReached(beforeWrap, deadline));
+  EXPECT_EQ(deadlineRemaining(beforeWrap, deadline), 40U);
+  uint32_t afterWrap = 20U;
+  EXPECT_TRUE(!deadlineActive(afterWrap, deadline));
+  EXPECT_TRUE(deadlineReached(afterWrap, deadline));
+  EXPECT_EQ(deadlineRemaining(afterWrap, deadline), 0U);
 }
 
 static void testCatchChanceAndRolls() {
@@ -625,10 +721,149 @@ static void testExpeditionItemsCapAndConsumeSafely() {
   EXPECT_EQ(pet.itemCounts[EXP_ITEM_TRAIN], 1);
 }
 
+static void testExpeditionHudStates() {
+  Pet egg;
+  EXPECT_EQ(egg.expeditionHudState(1000), EXP_HUD_HIDDEN);
+
+  Pet pet = hatchedPet(4);
+  EXPECT_EQ(pet.expeditionHudState(1000), EXP_HUD_HIDDEN);
+
+  pet.itemCounts[EXP_ITEM_SNACK] = 2;
+  pet.itemCounts[EXP_ITEM_TRAIN] = 1;
+  EXPECT_EQ(pet.expeditionItemCount(), 3);
+  EXPECT_EQ(pet.expeditionHudState(1000), EXP_HUD_BAG);
+
+  pet.expeditionEndEpoch = 1100;
+  pet.expeditionRewardItem = EXP_ITEM_CARE;
+  EXPECT_EQ(pet.expeditionHudState(1099), EXP_HUD_ACTIVE);
+  EXPECT_EQ(pet.expeditionHudState(1100), EXP_HUD_READY);
+
+  pet.ceremony = CER_FAREWELL;
+  EXPECT_EQ(pet.expeditionHudState(1100), EXP_HUD_HIDDEN);
+}
+
+static const uint32_t kNoonEpoch = 1767276000UL;   // 2026-01-01 14:00 UTC
+static const uint32_t kNightEpoch = 1767225600UL;  // 2026-01-01 00:00 UTC
+static const uint32_t kMorningEpoch = 1767254400UL; // 2026-01-01 08:00 UTC
+
+static void testDayphaseHelpers() {
+  EXPECT_EQ(sceneHourFromEpoch(0), 13);
+  EXPECT_EQ(sceneHourFromEpoch(kNoonEpoch), 14);
+  EXPECT_EQ(sceneHourFromEpoch(kNightEpoch), 0);
+  EXPECT_EQ(sceneHourFromEpoch(kMorningEpoch), 8);
+  EXPECT_EQ(dayPhaseFromEpoch(kMorningEpoch), 0);
+  EXPECT_EQ(dayPhaseFromEpoch(kNoonEpoch), 1);
+  EXPECT_EQ(dayPhaseFromEpoch(kNightEpoch), 3);
+  EXPECT_EQ(nightFoodDrop(kNoonEpoch), 2);
+  EXPECT_EQ(nightFoodDrop(kNightEpoch), 1);
+  EXPECT_TRUE(isVisualNight(20, false));
+  EXPECT_TRUE(!isVisualNight(14, false));
+  EXPECT_TRUE(isVisualNight(14, true));
+}
+
+static void testNightHungerDropsSlowerWhenAwake() {
+  Pet dayPet = hatchedPet(4);
+  dayPet.fullness = 80;
+  dayPet.sleeping = false;
+  dayPet.lastSeenEpoch = kNoonEpoch;
+  gMockMillis = 0;
+  EXPECT_TRUE(dayPet.update(PET_TICK_MS));
+  EXPECT_EQ(dayPet.fullness, 78);
+
+  Pet nightPet = hatchedPet(4);
+  nightPet.fullness = 80;
+  nightPet.sleeping = false;
+  nightPet.lastSeenEpoch = kNightEpoch;
+  gMockMillis = 0;
+  EXPECT_TRUE(nightPet.update(PET_TICK_MS));
+  EXPECT_EQ(nightPet.fullness, 79);
+  gMockMillis = 0;
+}
+
+static void testOfflineNightHungerUsesHourOfEachMinute() {
+  Pet pet = hatchedPet(4);
+  pet.setClock(kNightEpoch);
+  pet.fullness = 80;
+  pet.sleeping = false;
+  pet.syncClock(kNightEpoch + 5UL * 60UL);
+  EXPECT_EQ(pet.fullness, 75);
+
+  Pet dayPet = hatchedPet(4);
+  dayPet.setClock(kNoonEpoch);
+  dayPet.fullness = 80;
+  dayPet.sleeping = false;
+  dayPet.syncClock(kNoonEpoch + 5UL * 60UL);
+  EXPECT_EQ(dayPet.fullness, 70);
+}
+
+static void testShakePlayHasCooldownAndDailyCap() {
+  Pet pet = hatchedPet(4);
+  pet.joy = 50;
+  pet.lastSeenEpoch = kNoonEpoch;
+  gMockMillis = 1000;
+  EXPECT_TRUE(pet.applyShake());
+  EXPECT_EQ(pet.joy, 53);
+  EXPECT_TRUE(!pet.applyShake());
+  gMockMillis += 25000;
+  EXPECT_TRUE(pet.applyShake());
+  EXPECT_EQ(pet.joy, 56);
+
+  pet.sleeping = true;
+  gMockMillis += 25000;
+  EXPECT_TRUE(!pet.applyShake());
+  pet.sleeping = false;
+
+  for (int i = 0; i < 6; i++) {
+    gMockMillis += 25000;
+    EXPECT_TRUE(pet.applyShake());
+  }
+  gMockMillis += 25000;
+  EXPECT_TRUE(!pet.applyShake());
+  gMockMillis = 0;
+}
+
+static void testWalkGivesCappedJoyAndBond() {
+  Pet pet = hatchedPet(4);
+  pet.joy = 40;
+  pet.bond = 10;
+  pet.lastSeenEpoch = kNoonEpoch;
+  EXPECT_EQ(pet.applyWalk(40), 1);
+  EXPECT_EQ(pet.joy, 41);
+  EXPECT_EQ(pet.applyWalk(40 * 10), 5);
+  EXPECT_EQ(pet.joy, 46);
+
+  Pet bonded = hatchedPet(4);
+  bonded.bond = 10;
+  bonded.lastSeenEpoch = kNoonEpoch;
+  bonded.applyWalk(150);
+  EXPECT_EQ(bonded.bond, 11);
+  bonded.applyWalk(150);
+  EXPECT_EQ(bonded.bond, 12);
+  bonded.applyWalk(150);
+  EXPECT_EQ(bonded.bond, 12);
+
+  Pet egg;
+  egg.speciesId = -1;
+  EXPECT_EQ(egg.applyWalk(80), 0);
+}
+
+static void testMorningGreetingOncePerDay() {
+  Pet pet = hatchedPet(4);
+  pet.joy = 40;
+  pet.lastSeenEpoch = kMorningEpoch;
+  EXPECT_TRUE(pet.takeMorningGreeting());
+  EXPECT_EQ(pet.joy, 42);
+  EXPECT_TRUE(!pet.takeMorningGreeting());
+
+  pet.lastSeenEpoch = kNoonEpoch;
+  EXPECT_TRUE(!pet.takeMorningGreeting());
+}
+
 int main() {
   testEggHatchesChosenStarter();
   testBattleStatsUseBaseGenesLevelAndTraining();
   testEvolutionRequiresLevelAndHealthyStats();
+  testEvolveOfferStaysWhenStatsDipAndReoffersAtCap();
   testCareMistakeDelaysEvolution();
   testTrainingRewardsClampAndAffectNeeds();
   testCatchRewardTrainsSpeedAndRecord();
@@ -646,6 +881,10 @@ int main() {
   testCollectionRanksAndFrameSelection();
   testSpeciesChirpProfilesAreValidAndIndividual();
   testPetInteractionCooldownAndPersonalityBonus();
+  testNewPetResetsInteractionAndDecisionDeferrals();
+  testLevelCapsAtOneHundred();
+  testCeremonyCompletesToNewEgg();
+  testDeadlineHelpersHandleMillisRollover();
   testCatchChanceAndRolls();
   testRespectCatchIsLimitedAndHasNoCareReward();
   testCareBonusCapsStreakContribution();
@@ -654,6 +893,13 @@ int main() {
   testExpeditionStartAndClaim();
   testExpeditionRequirementsAndTrainingChances();
   testExpeditionItemsCapAndConsumeSafely();
+  testExpeditionHudStates();
+  testDayphaseHelpers();
+  testNightHungerDropsSlowerWhenAwake();
+  testOfflineNightHungerUsesHourOfEachMinute();
+  testShakePlayHasCooldownAndDailyCap();
+  testWalkGivesCappedJoyAndBond();
+  testMorningGreetingOncePerDay();
 
   if (failures) {
     std::cerr << failures << " Testfehler\n";

@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")/.."
 FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-VERSION="1.29.2-memo-layout"
+VERSION="1.32.0-evo-cta"
 
 echo "Compilando..."
 B="$(mktemp -d "${TMPDIR:-/tmp}/tamapoke-build.XXXXXX")"

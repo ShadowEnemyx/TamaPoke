@@ -1,6 +1,7 @@
 #include "pet.h"
 #include "dex.h"
 #include "audio.h"
+#include "dayphase.h"
 
 void Pet::begin() {
   prefs.begin("tamapoke", false);
@@ -18,6 +19,7 @@ void Pet::begin() {
 
 void Pet::newEgg() {
   ceremony = CER_NONE;
+  ceremonyUntil = 0;
   neglectTicks = 0;
   weight = 0;
   speciesId = -1;
@@ -35,6 +37,10 @@ void Pet::newEgg() {
   hygiene = 100;
   poops = 0;
   ageMinutes = 0;
+  lastPetInteractMinute = 0;
+  evoDeclinedLv = 0;
+  evoDeclinedAge = 0;
+  farDeclinedAge = 0;
   careMistakes = 0;
   mistakeCooldown = 0;
   sleeping = false;
@@ -80,7 +86,8 @@ void Pet::syncClock(uint32_t nowEpoch) {
       if (ageMinutes % 3 == 0) hygiene = dropTo(hygiene, 1, 45);
       continue;
     }
-    fullness = dropTo(fullness, 2, 15);
+    uint32_t minuteEpoch = seen + (i + 1UL) * 60UL;
+    fullness = dropTo(fullness, nightFoodDrop(minuteEpoch), 15);
     energy = dropTo(energy, 1, 15);
     hygiene = dropTo(hygiene, 1, 15);
     joy = dropTo(joy, 1, 15);
@@ -97,16 +104,19 @@ void Pet::syncClock(uint32_t nowEpoch) {
   save();
 }
 
-void Pet::update(uint32_t nowMs) {
+bool Pet::update(uint32_t nowMs) {
   // fin de ceremonia: la criatura se va y queda un huevo nuevo
-  if (ceremony != CER_NONE && millis() > ceremonyUntil) {
+  if (ceremony != CER_NONE && deadlineReached(millis(), ceremonyUntil)) {
     newEgg();
-    return;
+    return true;
   }
+  bool changed = false;
   while (nowMs - lastTick >= PET_TICK_MS) {
     lastTick += PET_TICK_MS;
     tick();
+    changed = true;
   }
+  return changed;
 }
 
 void Pet::tick() {
@@ -137,7 +147,7 @@ void Pet::tick() {
 
   if (ageMinutes % MINUTES_PER_LEVEL == 0) sfxPlay(SFX_LEVEL);  // subio de nivel (despierto)
 
-  fullness = clamp100(fullness - 2);
+  fullness = clamp100(fullness - nightFoodDrop(lastSeenEpoch));
   energy = clamp100(energy - 1);
   if (fullness > 40 && poops < 3 && random(100) < 15) poops++;
 
@@ -588,21 +598,46 @@ void Pet::hatch() {
   medals = 0;
   newMedal = 0;
   nick[0] = 0;
+  lastPetInteractMinute = 0;
+  evoDeclinedLv = 0;
+  evoDeclinedAge = 0;
+  farDeclinedAge = 0;
   registerSpecies(speciesId);  // criado = registrado en la pokedex
   checkMedals();     // por si nace ya en forma final (legendario)
   sfxPlay(SFX_HATCH);
   save();
 }
 
-// ¿se dan ya las condiciones para evolucionar? Cada descuido retrasa la
-// evolucion 1 nivel, y ademas tiene que estar bien cuidado en ese momento
-// (ninguna estadistica por debajo de 40). NO evoluciona sola: la dispara el
-// usuario tocando al bicho (evolve()), para que vea la transformacion.
-bool Pet::canEvolveNow() const {
-  if (isEgg() || sleeping || ceremony != CER_NONE) return false;
+// Nivel + Patzer reichen fuer die Entwicklungs-Taste. Die eigentliche
+// Verwandlung (canEvolveNow) verlangt zusaetzlich wach und alle Balken >= 40.
+bool Pet::evolutionUnlocked() const {
+  if (isEgg() || ceremony != CER_NONE) return false;
+  if (speciesId < 1 || speciesId > DEX_COUNT) return false;
   const DexEntry &d = DEX_TBL[speciesId];
   if (d.evolvesTo == 0) return false;
-  return level() >= (uint8_t)(d.evolveLevel + careMistakes) && lowestStat() >= 40;
+  uint16_t need = (uint16_t)d.evolveLevel + careMistakes;
+  if (need > 100) need = 100;
+  return level() >= (uint8_t)need;
+}
+
+bool Pet::canEvolveNow() const {
+  return evolutionUnlocked() && !sleeping && lowestStat() >= 40;
+}
+
+bool Pet::wantEvolveButton() const {
+  if (sleeping || !evolutionUnlocked()) return false;
+  if (level() >= 100) return ageMinutes >= evoDeclinedAge;
+  return level() > evoDeclinedLv;
+}
+
+void Pet::declineEvolve() {
+  if (level() >= 100) {
+    evoDeclinedLv = 100;
+    evoDeclinedAge = ageMinutes + 1440;
+  } else {
+    evoDeclinedLv = level();
+  }
+  save();
 }
 
 void Pet::evolve() {
@@ -799,6 +834,81 @@ uint8_t Pet::interactPet(bool eveningBonus) {
   return result;
 }
 
+bool Pet::applyShake() {
+  if (ceremony != CER_NONE || isEgg() || sleeping) return false;
+  uint32_t now = millis();
+  if (deadlineActive(now, shakeReadyAt)) return false;
+  uint32_t d = today();
+  if (d != shakeDay) {
+    shakeDay = d;
+    shakeCountToday = 0;
+  }
+  if (d && shakeCountToday >= 8) return false;
+  shakeReadyAt = now + 25000UL;
+  if (d) shakeCountToday++;
+  joy = clamp100((int)joy + 3);
+  heartUntil = now + HEART_MS;
+  pendingSave = true;
+  return true;
+}
+
+uint8_t Pet::applyWalk(uint16_t steps) {
+  if (!steps || ceremony != CER_NONE || isEgg()) return 0;
+  uint32_t d = today();
+  uint32_t hour = unixHourFromEpoch(lastSeenEpoch);
+  if (d != walkDay) {
+    walkDay = d;
+    walkJoyToday = 0;
+    walkBondToday = 0;
+    walkJoyHour = 0;
+    walkHour = hour;
+    walkJoyBank = 0;
+    walkBondBank = 0;
+  } else if (hour != walkHour) {
+    walkHour = hour;
+    walkJoyHour = 0;
+  }
+
+  uint32_t joyBank = (uint32_t)walkJoyBank + steps;
+  uint32_t bondBank = (uint32_t)walkBondBank + steps;
+  uint8_t gained = 0;
+  while (joyBank >= 40 && walkJoyToday < 18 && walkJoyHour < 6) {
+    joyBank -= 40;
+    joy = clamp100((int)joy + 1);
+    walkJoyToday++;
+    walkJoyHour++;
+    gained++;
+  }
+  if (joyBank > 400) joyBank = 400;
+  walkJoyBank = (uint16_t)joyBank;
+
+  while (bondBank >= 150 && walkBondToday < 2) {
+    uint8_t before = bond;
+    addBond(1);
+    if (bond == before) break;
+    bondBank -= 150;
+    walkBondToday++;
+  }
+  if (bondBank > 400) bondBank = 400;
+  walkBondBank = (uint16_t)bondBank;
+
+  if (gained || walkBondToday) pendingSave = true;
+  return gained;
+}
+
+bool Pet::takeMorningGreeting() {
+  uint32_t d = today();
+  if (d == 0 || d == lastMorningDay) return false;
+  if (dayPhaseFromEpoch(lastSeenEpoch) != 0) return false;
+  lastMorningDay = d;
+  if (!isEgg() && !sleeping && ceremony == CER_NONE) {
+    joy = clamp100((int)joy + 2);
+    heartUntil = millis() + HEART_MS;
+  }
+  save();
+  return true;
+}
+
 PetPersonality Pet::personality() const {
   if (isEgg()) return PERS_BALANCED;
   if (weight >= 72 || energy <= 20) return PERS_LAZY;
@@ -881,6 +991,19 @@ bool Pet::expeditionActive(uint32_t nowEpoch) const {
 
 bool Pet::expeditionReady(uint32_t nowEpoch) const {
   return expeditionEndEpoch != 0 && nowEpoch >= expeditionEndEpoch;
+}
+
+uint8_t Pet::expeditionItemCount() const {
+  uint8_t total = 0;
+  for (uint8_t i = 0; i < EXP_ITEM_COUNT; i++) total += itemCounts[i];
+  return total;
+}
+
+ExpeditionHudState Pet::expeditionHudState(uint32_t nowEpoch) const {
+  if (isEgg() || ceremony != CER_NONE) return EXP_HUD_HIDDEN;
+  if (expeditionReady(nowEpoch)) return EXP_HUD_READY;
+  if (expeditionActive(nowEpoch)) return EXP_HUD_ACTIVE;
+  return expeditionItemCount() ? EXP_HUD_BAG : EXP_HUD_HIDDEN;
 }
 
 bool Pet::canReceiveExpeditionItem(ExpeditionItem item) const {
@@ -1049,6 +1172,9 @@ void Pet::save() {
   prefs.putUChar("mist", careMistakes);
   prefs.putBool("sleep", sleeping);
   prefs.putUChar("lend", lastEnd);
+  // millis()-Deadlines sind nach einem Neustart ungueltig. Der Marker sorgt
+  // dafuer, dass ein bereits begonnener Abschied beim Boot sauber endet.
+  prefs.putUChar("cerp", ceremony);
   if (lastSeenEpoch) prefs.putUInt("seen", lastSeenEpoch);
   prefs.putBytes("dexreg", dexReg, sizeof(dexReg));
   prefs.putBytes("dexcgt", dexCaught, sizeof(dexCaught));
@@ -1079,6 +1205,16 @@ void Pet::save() {
   prefs.putBytes("items", itemCounts, sizeof(itemCounts));
   prefs.putUInt("exend", expeditionEndEpoch);
   prefs.putUChar("exrwd", expeditionRewardItem);
+  prefs.putUInt("lmday", lastMorningDay);
+  prefs.putUInt("shkday", shakeDay);
+  prefs.putUChar("shkcnt", shakeCountToday);
+  prefs.putUInt("wday", walkDay);
+  prefs.putUInt("whour", walkHour);
+  prefs.putUChar("wjoy", walkJoyToday);
+  prefs.putUChar("wjhr", walkJoyHour);
+  prefs.putUChar("wbond", walkBondToday);
+  prefs.putUChar("edlv", evoDeclinedLv);
+  prefs.putUInt("edage", evoDeclinedAge);
   prefs.putString("nick", nick);
 }
 
@@ -1121,6 +1257,7 @@ void Pet::load() {
   careMistakes = prefs.getUChar("mist", 0);
   sleeping = prefs.getBool("sleep", false);
   lastEnd = prefs.getUChar("lend", CER_NONE);
+  uint8_t pendingCeremony = prefs.getUChar("cerp", CER_NONE);
   prefs.getBytes("dexreg", dexReg, sizeof(dexReg));
   prefs.getBytes("dexcgt", dexCaught, sizeof(dexCaught));
   streak = prefs.getUShort("strk", 0);
@@ -1162,6 +1299,16 @@ void Pet::load() {
     if (itemCounts[i] > EXP_ITEM_MAX) itemCounts[i] = EXP_ITEM_MAX;
   expeditionEndEpoch = prefs.getUInt("exend", 0);
   expeditionRewardItem = prefs.getUChar("exrwd", EXP_ITEM_NONE);
+  lastMorningDay = prefs.getUInt("lmday", 0);
+  shakeDay = prefs.getUInt("shkday", 0);
+  shakeCountToday = prefs.getUChar("shkcnt", 0);
+  walkDay = prefs.getUInt("wday", 0);
+  walkHour = prefs.getUInt("whour", 0);
+  walkJoyToday = prefs.getUChar("wjoy", 0);
+  walkJoyHour = prefs.getUChar("wjhr", 0);
+  walkBondToday = prefs.getUChar("wbond", 0);
+  evoDeclinedLv = prefs.getUChar("edlv", 0);
+  evoDeclinedAge = prefs.getUInt("edage", 0);
   if (expeditionEndEpoch == 0 || expeditionRewardItem >= EXP_ITEM_COUNT) {
     expeditionEndEpoch = 0;
     expeditionRewardItem = EXP_ITEM_NONE;
@@ -1169,4 +1316,10 @@ void Pet::load() {
   prefs.getString("nick", nick, sizeof(nick));
   // siembra: la mascota actual cuenta como criada (guardados antiguos)
   if (speciesId >= 1) registerSpecies(speciesId);
+  ceremony = CER_NONE;
+  ceremonyUntil = 0;
+  if (!isEgg() && pendingCeremony >= CER_FAREWELL && pendingCeremony <= CER_RELEASE) {
+    lastEnd = pendingCeremony;
+    newEgg();
+  }
 }

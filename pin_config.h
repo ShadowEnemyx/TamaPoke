@@ -32,6 +32,11 @@
 #define I2S_DO_IO 8
 #define PA 46
 
+// QMI8658 (6-Achsen-IMU) sitzt auf demselben I2C-Bus wie Touch/RTC/PMU.
+// 7-bit-Adresse 0x6B (QMI8658_L_SLAVE_ADDRESS). Kein INT-Pin in diesem Pinout:
+// Firmware pollt, statt auf einen Wake-GPIO zu warten.
+#define QMI8658_I2C_ADDR 0x6B
+
 // Ranura TF (no usada todavía)
 #define SDMMC_CLK 2
 #define SDMMC_CMD 1

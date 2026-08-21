@@ -31,11 +31,16 @@
   code { background:#0001; padding:.1em .4em; border-radius:5px; }
   a { color:var(--accent); }
   .note { font-size:.9rem; color:#6b6b76; }
+  .ver { display:inline-block; margin: .35rem 0 1.25rem; padding:.35rem .75rem;
+         background:#fff; border:1px solid var(--track); border-radius:999px;
+         font-size:.95rem; color:var(--ink); }
+  .ver b { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
+  <p class="ver" id="fw-ver">This flash: <b>1.32.0-evo-cta</b> · 21 Aug 2026</p>
   <p class="sub">A 151-Pokémon tamagotchi for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
@@ -47,8 +52,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <esp-web-install-button manifest="manifest.json?v=1.32.0-evo-cta">
-      <button slot="activate">⚡ Install TamaPoke</button>
+    <p class="note" id="fw-step">Installs firmware <b>1.32.0-evo-cta</b> from 21 Aug 2026.
+       The same version is shown on the board in Settings after flashing.</p>
+    <esp-web-install-button manifest="manifest.json?v=1.32.0-20260821">
+      <button slot="activate">⚡ Install TamaPoke 1.32.0</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -88,6 +95,27 @@
 
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
 <script>
+function formatReleased(iso) {
+  const d = new Date(iso + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+fetch('manifest.json?v=1.32.0-20260821')
+  .then((r) => r.ok ? r.json() : null)
+  .then((m) => {
+    if (!m || !m.version) return;
+    const when = m.released ? formatReleased(m.released) : '';
+    const label = when ? `${m.version} · ${when}` : m.version;
+    const pill = document.getElementById('fw-ver');
+    if (pill) pill.innerHTML = 'This flash: <b>' + m.version + '</b>' + (when ? ' · ' + when : '');
+    const step = document.getElementById('fw-step');
+    if (step) step.innerHTML = 'Installs firmware <b>' + m.version + '</b>' +
+      (when ? ' from ' + when : '') +
+      '. The same version is shown on the board in Settings after flashing.';
+  })
+  .catch(() => {});
+
 const log = (m) => { const el = document.getElementById('log'); el.style.display='block';
   el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
 const supported = 'serial' in navigator;

@@ -40,7 +40,7 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">This flash: <b>1.32.2-caught-test</b> · 21 Aug 2026</p>
+  <p class="ver" id="fw-ver">This flash: <b>1.32.1-caught-mark</b> · 21 Aug 2026</p>
   <p class="sub">A 151-Pokémon tamagotchi for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
@@ -52,10 +52,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.32.2-caught-test</b> from 21 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.32.1-caught-mark</b> from 21 Aug 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest.json?v=1.32.2-caught-test">
-      <button slot="activate">⚡ Install TamaPoke 1.32.2</button>
+    <esp-web-install-button manifest="manifest.json?v=1.32.1-caught-mark">
+      <button slot="activate">⚡ Install TamaPoke 1.32.1</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -101,7 +101,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest.json?v=1.32.2-caught-test')
+fetch('manifest.json?v=1.32.1-caught-mark')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;

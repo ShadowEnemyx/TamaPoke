@@ -30,7 +30,7 @@
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "1.32.0-evo-cta"
+#define FW_VERSION "1.32.1-caught-mark"
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
 
@@ -3017,7 +3017,6 @@ void renderBattle() {
   uint16_t enemyCur = battleRun.enemyHp;
   drawBattleHpBar(28, 110, playerCur, playerMax, UI_BAR_OK);
   drawBattleHpBar(288, 110, enemyCur, enemyMax, UI_BAR_BAD);
-  if (pet.isCaught(battleDex)) drawCaughtBattleMarker(272, 119);
   drawTypeChips(28, 130, mine, false);
   drawTypeChips(438, 130, wild, true);
 
@@ -3028,6 +3027,10 @@ void renderBattle() {
     gfx->setCursor(188 + (90 - (int)strlen(T(S_RUN_BATTLE)) * 12) / 2, 111);
     gfx->print(T(S_RUN_BATTLE));
   }
+  // Rechts neben dem Gegnernamen, ueber dem HP-Balken — nicht in der
+  // Luecke neben FLIEHEN, sonst liegt der Marker unter dem Button.
+  if (pet.isCaught(battleDex))
+    drawCaughtBattleMarker(410, 68);
 
   if (pmd.loaded) drawPmdAct(PMD_IDLE, 142, 286, millis(), true, false, 3);
   else {
@@ -3558,8 +3561,8 @@ uint16_t collectionFrameColor(uint8_t frame) {
 }
 
 void drawCaughtBattleMarker(int x, int y) {
-  // Kleiner Pokeball links vom Gegner-HP-Balken. Er braucht keinen Text und
-  // bleibt deshalb auch bei langen, lokalisierten Gegnernamen sichtbar.
+  // Kleiner Pokeball an der Gegner-Namenszeile (rechte Haelfte). Ohne Text,
+  // damit lange lokalisierte Namen den Marker nicht verdraengen.
   gfx->fillCircle(x, y, 9, UI_BAR_BAD);
   gfx->fillRect(x - 8, y, 16, 8, UI_WHITE);
   gfx->drawCircle(x, y, 9, UI_INK);

@@ -30,7 +30,11 @@
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "1.32.1-caught-mark"
+#ifdef TAMAPOKE_LOCAL_TEST
+#define FW_VERSION "1.32.2-local-test"
+#else
+#define FW_VERSION "1.32.2-type-mark"
+#endif
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
 
@@ -187,6 +191,10 @@ uint8_t currentDayPhase();
 bool mainScreenReadyForShake();
 void maybeOfferMorning(uint32_t now);
 uint32_t pmdActTotalMs(const PmdAct &a);
+#ifdef TAMAPOKE_LOCAL_TEST
+void startBattleWith(int16_t forcedDex, uint8_t forcedLevel);
+void startBattle();
+#endif
 
 // las 9 especies con sprite propio en flash (respaldo sin SD): dex -> indice
 int flashIdxForDex(int16_t dex) {
@@ -730,6 +738,35 @@ void handleSerial() {
       if (pet.isRegistered(i)) Serial.printf(" %d", i);
     Serial.println();
     Serial.println("DONE");
+#ifdef TAMAPOKE_LOCAL_TEST
+  } else if (line == "CAUGHT") {
+    Serial.printf("caught %u/151:", pet.caughtCount());
+    for (int i = 1; i <= 151; i++)
+      if (pet.isCaught(i)) Serial.printf(" %d", i);
+    Serial.println();
+    Serial.println("DONE");
+  } else if (line.startsWith("CAUGHT ")) {
+    int n = line.substring(7).toInt();
+    if (n < 1 || n > DEX_COUNT) n = pet.speciesId;
+    if (n >= 1 && n <= DEX_COUNT) {
+      pet.registerCaught((int16_t)n);
+      Serial.printf("caught #%d %s\n", n, DEX_TBL[n].name);
+    }
+    Serial.println("DONE");
+  } else if (line.startsWith("BATTLE ")) {
+    int n = line.substring(7).toInt();
+    startBattleWith((int16_t)n, pet.level());
+    Serial.printf("battle #%d %s caught=%d\n", battleDex,
+                  (battleDex >= 1 && battleDex <= DEX_COUNT) ? DEX_TBL[battleDex].name : "?",
+                  pet.isCaught(battleDex));
+    Serial.println("DONE");
+  } else if (line == "BATTLE") {
+    startBattle();
+    Serial.printf("battle #%d %s caught=%d\n", battleDex,
+                  (battleDex >= 1 && battleDex <= DEX_COUNT) ? DEX_TBL[battleDex].name : "?",
+                  pet.isCaught(battleDex));
+    Serial.println("DONE");
+#endif
   } else if (line == "SAVEINFO") {
     Serial.printf("fw=%s save=%s createdBoot=%d spec=%d level=%u egg=%d starter=%d age=%lu\n",
                   FW_VERSION, pet.saveLoadedFromNvs ? "loaded" : "created",
@@ -2919,7 +2956,7 @@ void drawTypeChip(int x, int y, uint8_t type) {
   gfx->print(label);
 }
 
-void drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
+int drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
   int w1 = typeChipWidth(d.type1);
   int w2 = d.type2 == TYPE_NONE ? 0 : typeChipWidth(d.type2);
   int total = w1 + (w2 ? 4 + w2 : 0);
@@ -2927,6 +2964,7 @@ void drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
   drawTypeChip(sx, y, d.type1);
   if (d.type2 != TYPE_NONE) drawTypeChip(sx + w1 + 4, y, d.type2);
   gfx->setTextSize(2);
+  return sx;
 }
 
 void drawWildPrompt() {
@@ -3018,7 +3056,7 @@ void renderBattle() {
   drawBattleHpBar(28, 110, playerCur, playerMax, UI_BAR_OK);
   drawBattleHpBar(288, 110, enemyCur, enemyMax, UI_BAR_BAD);
   drawTypeChips(28, 130, mine, false);
-  drawTypeChips(438, 130, wild, true);
+  int wildChipLeft = drawTypeChips(438, 130, wild, true);
 
   if (!battleResolved) {
     gfx->fillRoundRect(188, 102, 90, 32, 9, UI_TRACK);
@@ -3027,10 +3065,10 @@ void renderBattle() {
     gfx->setCursor(188 + (90 - (int)strlen(T(S_RUN_BATTLE)) * 12) / 2, 111);
     gfx->print(T(S_RUN_BATTLE));
   }
-  // Rechts neben dem Gegnernamen, ueber dem HP-Balken — nicht in der
-  // Luecke neben FLIEHEN, sonst liegt der Marker unter dem Button.
+  // Links neben den Typ-Chips des Gegners (Gift/Flug usw.). Oben rechts
+  // neben dem Namen liegt der Marker ausserhalb des runden Displays.
   if (pet.isCaught(battleDex))
-    drawCaughtBattleMarker(410, 68);
+    drawCaughtBattleMarker(wildChipLeft - 36, 122);
 
   if (pmd.loaded) drawPmdAct(PMD_IDLE, 142, 286, millis(), true, false, 3);
   else {
@@ -3561,14 +3599,8 @@ uint16_t collectionFrameColor(uint8_t frame) {
 }
 
 void drawCaughtBattleMarker(int x, int y) {
-  // Kleiner Pokeball an der Gegner-Namenszeile (rechte Haelfte). Ohne Text,
-  // damit lange lokalisierte Namen den Marker nicht verdraengen.
-  gfx->fillCircle(x, y, 9, UI_BAR_BAD);
-  gfx->fillRect(x - 8, y, 16, 8, UI_WHITE);
-  gfx->drawCircle(x, y, 9, UI_INK);
-  gfx->drawLine(x - 8, y, x + 8, y, UI_INK);
-  gfx->fillCircle(x, y, 3, UI_INK);
-  gfx->fillCircle(x, y, 1, UI_WHITE);
+  // Gleicher 16er-Pokeball wie im Minispiel, 2x neben den Typ-Chips (32 px).
+  drawMap(SPR_ICON_PLAY, 16, x, y, 2, false);
 }
 
 static void drawFrameCorner(int x, int y, int sx, int sy, uint16_t color, uint8_t len) {

@@ -15,7 +15,7 @@ Dos formatos conviven en la microSD (`/mons/`), ambos derivados de PMD SpriteCol
 | **TPTH** `thumbs.bin` | `make_thumbs.py` | (deriva de los TPK2) | Miniaturas 40×40 de la galería |
 
 ```bash
-python3 tools/pack_pmd.py     # los 151 + shiny -> tools/sdcard/mons/p[s]NNN.bin
+python3 tools/pack_pmd.py     # todas las especies incluidas + shiny -> tools/sdcard/mons/p[s]NNN.bin
 python3 tools/make_thumbs.py  # -> tools/sdcard/mons/thumbs.bin
 python3 tools/send_sd.py      # envia todo a la SD de la placa por USB
 ```

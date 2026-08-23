@@ -402,7 +402,7 @@ static void testCollectionRanksAndFrameSelection() {
 
 static void testSpeciesChirpProfilesAreValidAndIndividual() {
   uint16_t previousSignature = 0;
-  for (int16_t dex = 1; dex <= 151; dex++) {
+  for (int16_t dex = 1; dex <= DEX_COUNT; dex++) {
     SpeciesChirpProfile profile{};
     EXPECT_TRUE(speciesChirpProfile(dex, &profile));
     EXPECT_EQ(profile.count, 4);
@@ -418,7 +418,7 @@ static void testSpeciesChirpProfilesAreValidAndIndividual() {
   }
   SpeciesChirpProfile invalid{};
   EXPECT_TRUE(!speciesChirpProfile(0, &invalid));
-  EXPECT_TRUE(!speciesChirpProfile(152, &invalid));
+  EXPECT_TRUE(!speciesChirpProfile(DEX_COUNT + 1, &invalid));
   EXPECT_TRUE(!speciesChirpProfile(25, nullptr));
 }
 
@@ -859,6 +859,30 @@ static void testMorningGreetingOncePerDay() {
   EXPECT_TRUE(!pet.takeMorningGreeting());
 }
 
+static void testGen2StarterFamiliesAndDexCompletion() {
+  EXPECT_EQ(DEX_TBL[152].evolvesTo, 153);
+  EXPECT_EQ(DEX_TBL[153].evolvesTo, 154);
+  EXPECT_EQ(DEX_TBL[155].evolvesTo, 156);
+  EXPECT_EQ(DEX_TBL[156].evolvesTo, 157);
+  EXPECT_EQ(DEX_TBL[158].evolvesTo, 159);
+  EXPECT_EQ(DEX_TBL[159].evolvesTo, 160);
+  EXPECT_EQ(DEX_TBL[152].bHp, 45);
+  EXPECT_EQ(DEX_TBL[157].bSpe, 100);
+  EXPECT_EQ(DEX_TBL[160].bAtk, 105);
+
+  Pet pet = hatchedPet(152);
+  EXPECT_EQ(pet.speciesId, 152);
+  EXPECT_TRUE(pet.isRegistered(152));
+  EXPECT_TRUE(!pet.isRegistered(160));
+
+  for (int16_t dex = 1; dex <= DEX_COUNT; dex++) pet.registerCaught(dex);
+  EXPECT_EQ(pet.knownDexCount(), DEX_COUNT);
+  EXPECT_EQ(pet.collectionRank(), 6);
+  EXPECT_EQ(pet.nextDexGoal(), DEX_COUNT);
+  EXPECT_EQ(pet.unlockedCollectionFrameCount(), 7);
+  EXPECT_TRUE(pet.setCollectionFrame(6));
+}
+
 int main() {
   testEggHatchesChosenStarter();
   testBattleStatsUseBaseGenesLevelAndTraining();
@@ -900,6 +924,7 @@ int main() {
   testShakePlayHasCooldownAndDailyCap();
   testWalkGivesCappedJoyAndBond();
   testMorningGreetingOncePerDay();
+  testGen2StarterFamiliesAndDexCompletion();
 
   if (failures) {
     std::cerr << failures << " Testfehler\n";

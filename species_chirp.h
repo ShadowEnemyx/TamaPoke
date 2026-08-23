@@ -24,6 +24,6 @@ struct SpeciesChirpProfile {
   uint8_t count;
 };
 
-// Liefert fuer jede Kanto-Dexnummer einen eigenen, melodischen Synthese-Ruf.
+// Liefert fuer jede enthaltene Dexnummer einen eigenen, melodischen Synthese-Ruf.
 // Ungueltige Dexnummern liefern false und erzeugen nie Audio.
 bool speciesChirpProfile(int16_t dex, SpeciesChirpProfile *out);

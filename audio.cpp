@@ -1,5 +1,6 @@
 #include "audio.h"
 #include "species_chirp.h"
+#include "dex.h"
 #include "pin_config.h"
 #include <Arduino.h>
 #include <Wire.h>
@@ -287,7 +288,7 @@ static void audioTask(void *) {
   for (;;) {
     if (!xQueueReceive(gQ, &event, portMAX_DELAY) || !gReady) continue;
     bool isSfx = event.kind == AUDIO_EVENT_SFX && event.value < SFX_COUNT;
-    bool isChirp = event.kind == AUDIO_EVENT_CHIRP && event.value >= 1 && event.value <= 151 && gMode >= SOUND_MED;
+    bool isChirp = event.kind == AUDIO_EVENT_CHIRP && event.value >= 1 && event.value <= DEX_COUNT && gMode >= SOUND_MED;
     if (isSfx && gMode < SFX_MIN_MODE[event.value]) continue;
     if (isSfx || isChirp) {
       gBusy = true;
@@ -375,7 +376,7 @@ bool audioBusy() {
 }
 
 void speciesChirpPlay(int16_t dex, bool force) {
-  if (!gReady || !gQ || gMode < SOUND_MED || dex < 1 || dex > 151) return;
+  if (!gReady || !gQ || gMode < SOUND_MED || dex < 1 || dex > DEX_COUNT) return;
   uint32_t now = millis();
   uint32_t cooldown = force ? 220UL : 800UL;
   if (gLastChirpAt && now - gLastChirpAt < cooldown) return;

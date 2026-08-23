@@ -61,6 +61,11 @@ public:
     blobs[key] = std::vector<uint8_t>(bytes, bytes + len);
   }
 
+  size_t getBytesLength(const char *key) const {
+    auto it = blobs.find(key);
+    return it == blobs.end() ? 0 : it->second.size();
+  }
+
   size_t getBytes(const char *key, void *out, size_t len) const {
     auto it = blobs.find(key);
     if (it == blobs.end()) {

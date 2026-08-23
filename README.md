@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v1.32.1--caught--mark-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v1.33.0--gen2--watermark-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/ShadowEnemyx/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/ShadowEnemyx/TamaPoke/stargazers)
@@ -34,7 +34,7 @@ modify the firmware themselves.
 
 A gen-1-Pokémon-inspired tamagotchi for the
 **Waveshare ESP32-S3-Touch-AMOLED-1.75** (round 466×466 AMOLED, CO5300 driver
-over QSPI, CST9217 touch over I2C). Raise any of the 151, evolve it, train it
+over QSPI, CST9217 touch over I2C). Raise any of the 160, evolve it, train it
 and complete them all (shinies included).
 
 > **Personal, non-commercial fan project.** Code is MIT; the sprites are from
@@ -45,7 +45,7 @@ and complete them all (shinies included).
 
 ## Status
 
-Running on hardware. Implemented: the 151 + shinies animated from microSD, full
+Running on hardware. Implemented: the 160 + shinies animated from microSD, full
 life cycle (egg by rarity → evolution → farewell/release/runaway, each gated
 behind a decision dialog), bred-Pokédex with gallery, battle stats (genes +
 training), retention hooks (streak / bond / medals / name), biome + real-time
@@ -55,7 +55,8 @@ progression, battery (AXP2101) and PWR button, anti-burn-in dimming,
 first run**, a one-click **web installer**, manual and rare optional wild
 battles, one-shot catch attempts after wins, extra minigames, pet events,
 personality/profile cards, daily goals, collector ranks, unlockable cosmetic
-frames and richer synthesized sound effects. The Expedition card adds timed
+frames, richer synthesized sound effects and a subtle moving `@SE` attribution
+watermark on rendered screens. The Expedition card adds timed
 background tours and a small persistent item inventory.
 
 > **Species chirps are original synthesized TamaPoke sounds.** They are not
@@ -142,7 +143,7 @@ battles while the timer runs.
 ### Collection ranks and frames
 
 Raised and caught entries combine into one **known** Pokédex total. At **10,
-25, 50, 100 and 151** known species, TamaPoke unlocks a new cosmetic collector
+25, 50, 100, 151 and 160** known species, TamaPoke unlocks a new cosmetic collector
 frame and rank. Open the **Profile** card to see your rank and choose any frame
 you have unlocked. Frames are visual only; they do not change battles, catches
 or rewards.
@@ -150,7 +151,7 @@ or rewards.
 ### Eggs & who you get (spawn odds)
 - **First ever pet:** you pick a starter — **Bulbasaur / Charmander / Squirtle**.
 - Hatch the egg: tap it **3×** (or wait — it hatches on its own).
-- Every later egg rolls a **rarity tier** (over the ~79 base forms that come from eggs):
+- Every later egg rolls a **rarity tier** (over the ~82 base forms that come from eggs):
 
 | Tier | Base chance | After a proper goodbye | # species |
 |---|---|---|---|
@@ -162,7 +163,7 @@ or rewards.
 - A daily **streak** and high **bond** push rare/legendary odds higher.
 - A clean **goodbye blesses** the next egg; a **run-away curses** it (forces Common).
 - Within a tier it favors species whose **evolution line you haven't finished** (so
-  all 151 are completable).
+  all 160 are completable).
 - **Shiny:** base **1 / 48** (→ **1 / 24** right after a goodbye), improved by
   streak/bond down to a best of **1 / 8**. Tracked separately in the dex.
 - Every hatch rolls unique **genes** (90–110 % per stat) — no two are identical.
@@ -278,9 +279,9 @@ For local development, `web/index.html` flashes the firmware (ESP Web Tools) and
 pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 (secure context) and open it in **Chrome/Edge**. See [`web/README.md`](web/README.md).
 
-For uncommitted hardware tests there is a separate local page at
+For local hardware tests there is a separate page at
 `http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
-`1.32.1-local-test` build with extra serial test commands. Keep this page
+`1.33.0-gen2-watermark-local` build with extra serial test commands. Keep this page
 separate from the public `index.html`; do not publish the local manifest or
 local-test binaries to GitHub Pages.
 
@@ -295,7 +296,7 @@ pipeline below — the firmware accepts files over USB (PUT protocol with per-bl
 ACK), so you don't have to remove the card (it formats the SD to FAT if needed).
 
 ```bash
-python3 tools/pack_pmd.py       # fetch + pack PMD sprites: the 151 + shiny -> tools/sdcard/mons/p[s]NNN.bin
+python3 tools/pack_pmd.py       # fetch + pack all included species + shiny -> tools/sdcard/mons/p[s]NNN.bin
 python3 tools/make_thumbs.py    # Pokédex thumbnails (from the PMD sprites) -> thumbs.bin
 python3 tools/send_sd.py        # send tools/sdcard/mons/* to the board's SD over USB
 ```
@@ -468,8 +469,8 @@ The life cycle lasts **3 days** of play. Three endings (all leave a new egg):
 bars at zero for 1 h). Each bred species is recorded in the **bred Pokédex**
 (normal and shiny separately).
 
-The egg rolls rarity over the ~79 base forms (47 common / 27 rare / 5 legendary),
-**biased towards the lines you're missing** (all 151 are completable), blessed by
+The egg rolls rarity over the ~82 base forms (50 common / 27 rare / 5 legendary),
+**biased towards the lines you're missing** (all 160 are completable), blessed by
 a farewell and punished by a runaway. Legendaries only with 25+ registered.
 **Shiny** 1/48 (better with streak/bond/farewell).
 
@@ -492,7 +493,7 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 - `imu.h` / `imu.cpp` — QMI8658 poll, shake edge, pedometer delta
 - `audio.h` / `audio.cpp` — ES8311 + I2S + Game-Boy-style tone synth (non-blocking task)
 - `i18n.h` / `i18n.cpp` — the 6-language string tables
-- `dex.h` — GENERATED (`gen_dex.py`): the 151 table
+- `dex.h` — GENERATED (`gen_dex.py`): the 160-species table
 - `species.h` — GENERATED (`sprites.py`): fallback sprites, UI icons, colours
 - `pin_config.h` — the board's official pins
 - `tools/` — pipeline: `dex_data.py` (data), `dex_stats.py`, `gen_dex.py`,

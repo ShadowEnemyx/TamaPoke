@@ -1,6 +1,6 @@
 # TamaPoke Expanded - AI Handoff
 
-Stand: 2026-08-22
+Stand: 2026-08-23
 
 ## Projekt und Hardware
 
@@ -9,8 +9,8 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 `socquique/TamaPoke` und wird als "Expanded"-Variante gepflegt.
 
 - Firmware-Entry-Point: `TamaPoke.ino`
-- Oeffentlicher Firmware-Stand: `1.32.1-caught-mark`
-- Lokaler Test-Stand: `1.32.1-local-test` (nur ueber `TAMAPOKE_LOCAL_TEST`)
+- Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
+- Aktueller lokaler Gen-2/Wasserzeichen-Test: `1.33.0-gen2-watermark-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -31,13 +31,13 @@ erwuenscht.
 
 ## Aktueller Arbeitsbaum
 
-Der oeffentliche Installer bleibt auf `1.32.1-caught-mark`. Fuer Hardwaretests
+Der oeffentliche Installer bleibt auf dem Ausgangsstand. Fuer Hardwaretests
 existieren lokal zusaetzlich `web/dev.html` und `web/manifest-local.json`; diese
 Dateien sind bewusst nicht Teil des oeffentlichen Installationsflusses.
 
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
-- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.32.1-local-test`.
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.33.0-gen2-watermark-local`.
 - Die Serial-Befehle `CAUGHT`, `CAUGHT <dex>`, `BATTLE` und `BATTLE <dex>` sind
   nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
@@ -45,13 +45,17 @@ Aktuelle lokale Testguards in `TamaPoke.ino`:
 
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
-- Branch: `tamapoke-expanded-update`
+- Branch: `local/gen2-watermark`
 - `fork`: `https://github.com/ShadowEnemyx/TamaPoke.git`
 - `origin`: `https://github.com/socquique/TamaPoke.git`
-- HEAD ist aktuell `850f011` (`Revert the public installer off the caught-test build`).
-- Der Arbeitsbaum enthaelt absichtlich lokale, noch nicht veroeffentlichte
-  Testaenderungen in `TamaPoke.ino` sowie `web/dev.html` und
-  `web/manifest-local.json`.
+- Der Ausgangspunkt ist lokal als `3b24ea8` (`chore: save local baseline before gen2 watermark`)
+  und zusaetzlich mit dem Tag `local-baseline-before-gen2-watermark` gesichert.
+- Der lokale Featurestand ist als `feat: add gen2 starters and local watermark` gesichert;
+  es wurde nichts gepusht.
+- Der Arbeitsbaum enthaelt lokale, noch nicht veroeffentlichte Gen-2-,
+  Wasserzeichen-, Lokalisierungs- und Sprite-Aenderungen. `web/index.html` und
+  `web/manifest.json` bleiben auf dem oeffentlichen Ausgangsstand; nur
+  `web/dev.html` und `web/manifest-local.json` zeigen auf den lokalen Build.
 - Der Hauptautor hat die grosse Expanded-PR offen gelassen und verlinkt den Fork,
   moechte sie aber wegen Umfang, Branding und Binary-Historie nicht komplett in
   das Basisprojekt mergen. Kleine, spaetere Einzel-PRs waeren moeglich, aber nur
@@ -265,12 +269,13 @@ Fuer uncommittete Hardwaretests kann ein separates Testbuild erzeugt werden:
 ```bash
 FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
 arduino-cli compile --fqbn "$FQBN" \
-  --build-property build.extra_flags=-DTAMAPOKE_LOCAL_TEST \
-  --build-path /tmp/tamapoke-local-build --export-binaries .
+  --build-property compiler.cpp.extra_flags=-DTAMAPOKE_LOCAL_TEST \
+  --build-path /tmp/tamapoke-gen2-local-build --export-binaries .
 ```
 
 Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
-genannten `1.32.1-local-test`-Namen liegen. Danach:
+genannten `1.33.0-gen2-watermark-local`-Namen liegen. Die lokalen Parts sind
+Build-Artefakte und bleiben bewusst von Git ignoriert. Danach:
 
 ```bash
 python3 -m http.server 8000 --directory web

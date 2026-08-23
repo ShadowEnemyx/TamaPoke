@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Fuente unica de datos de la Pokedex gen 1 para TamaPoke.
+"""Fuente unica de datos de la Pokedex para TamaPoke.
 
 Cada entrada: (num, slug, nombre_pantalla, tipo, evoluciona_a, nivel)
 - slug: nombre en minusculas de la especie (identificador interno)
@@ -27,7 +27,7 @@ TYPE_ACCENTS = {
     'dragon':    '#5a52c4',
 }
 
-# Tipos de combate actuales para las 151 especies de Kanto.
+# Tipos de combate actuales para las especies incluidas.
 # Fuente verificada: PokeAPI /pokemon/{id}. La UI sigue usando `tipo` como
 # acento/bioma primario; estos pares se usan solo para el multiplicador battle.
 BATTLE_TYPES = {
@@ -107,6 +107,9 @@ BATTLE_TYPES = {
     144: ('ice', 'flying'), 145: ('electric', 'flying'), 146: ('fire', 'flying'),
     147: ('dragon', None), 148: ('dragon', None), 149: ('dragon', 'flying'),
     150: ('psychic', None), 151: ('psychic', None),
+    152: ('grass', None), 153: ('grass', None), 154: ('grass', None),
+    155: ('fire', None), 156: ('fire', None), 157: ('fire', None),
+    158: ('water', None), 159: ('water', None), 160: ('water', None),
 }
 
 # Nombres localizados para la UI en el orden de Lang: ES, EN, FR, DE, IT, PT.
@@ -264,6 +267,15 @@ LOCALIZED_NAMES = {
     149: ('DRAGONITE', 'DRAGONITE', 'DRACOLOSSE', 'DRAGORAN', 'DRAGONITE', 'DRAGONITE'),
     150: ('MEWTWO', 'MEWTWO', 'MEWTWO', 'MEWTU', 'MEWTWO', 'MEWTWO'),
     151: ('MEW', 'MEW', 'MEW', 'MEW', 'MEW', 'MEW'),
+    152: ('CHIKORITA', 'CHIKORITA', 'GERMIGNON', 'ENDIVIE', 'CHIKORITA', 'CHIKORITA'),
+    153: ('BAYLEEF', 'BAYLEEF', 'MACRONIUM', 'LORBLATT', 'BAYLEEF', 'BAYLEEF'),
+    154: ('MEGANIUM', 'MEGANIUM', 'MEGANIUM', 'MEGANIE', 'MEGANIUM', 'MEGANIUM'),
+    155: ('CYNDAQUIL', 'CYNDAQUIL', 'HERICENDRE', 'FEURIGEL', 'CYNDAQUIL', 'CYNDAQUIL'),
+    156: ('QUILAVA', 'QUILAVA', 'FEURISSON', 'IGELAVAR', 'QUILAVA', 'QUILAVA'),
+    157: ('TYPHLOSION', 'TYPHLOSION', 'TYPHLOSION', 'TORNUPTO', 'TYPHLOSION', 'TYPHLOSION'),
+    158: ('TOTODILE', 'TOTODILE', 'KAIMINUS', 'KARNIMANI', 'TOTODILE', 'TOTODILE'),
+    159: ('CROCONAW', 'CROCONAW', 'CROCRODIL', 'TYRACROC', 'CROCONAW', 'CROCONAW'),
+    160: ('FERALIGATR', 'FERALIGATR', 'ALIGATUEUR', 'IMPERGATOR', 'FERALIGATR', 'FERALIGATR'),
 }
 
 # num, slug, display, tipo, evolucionaA, nivel
@@ -419,6 +431,15 @@ DEX = [
     (149, 'dragonite', 'DRAGONITE', 'dragon', 0, 0),
     (150, 'mewtwo', 'MEWTWO', 'psiquico', 0, 0),
     (151, 'mew', 'MEW', 'psiquico', 0, 0),
+    (152, 'chikorita', 'CHIKORITA', 'planta', 153, 16),
+    (153, 'bayleef', 'BAYLEEF', 'planta', 154, 32),
+    (154, 'meganium', 'MEGANIUM', 'planta', 0, 0),
+    (155, 'cyndaquil', 'CYNDAQUIL', 'fuego', 156, 14),
+    (156, 'quilava', 'QUILAVA', 'fuego', 157, 36),
+    (157, 'typhlosion', 'TYPHLOSION', 'fuego', 0, 0),
+    (158, 'totodile', 'TOTODILE', 'agua', 159, 18),
+    (159, 'croconaw', 'CROCONAW', 'agua', 160, 30),
+    (160, 'feraligatr', 'FERALIGATR', 'agua', 0, 0),
 ]
 
 # el primer huevo de la partida siempre es un inicial clasico

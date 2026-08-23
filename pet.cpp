@@ -3,6 +3,14 @@
 #include "audio.h"
 #include "dayphase.h"
 
+static void loadDexBitmap(Preferences &prefs, const char *key, uint8_t *dst, size_t dstLen) {
+  memset(dst, 0, dstLen);
+  size_t stored = prefs.getBytesLength(key);
+  if (!stored) return;
+  size_t copyLen = stored < dstLen ? stored : dstLen;
+  prefs.getBytes(key, dst, copyLen);
+}
+
 void Pet::begin() {
   prefs.begin("tamapoke", false);
   bool hadSave = prefs.getBool("init", false);
@@ -207,7 +215,7 @@ void Pet::flushSave() {
 // quedan miembros sin registrar en la linea evolutiva de esta base?
 bool Pet::lineHasUnregistered(int16_t base) const {
   int16_t cur = base;
-  for (int guard = 0; cur >= 1 && cur <= 151 && guard < 6; guard++) {
+  for (int guard = 0; cur >= 1 && cur <= DEX_COUNT && guard < 6; guard++) {
     if (!isRegistered(cur)) return true;
     if (cur == DEX_EEVEE) {
       for (int16_t b = 134; b <= 136; b++)
@@ -220,7 +228,7 @@ bool Pet::lineHasUnregistered(int16_t base) const {
 }
 
 uint8_t Pet::eggRarity() const {
-  return (eggTarget >= 1 && eggTarget <= 151) ? DEX_TBL[eggTarget].rarity : R_COMUN;
+  return (eggTarget >= 1 && eggTarget <= DEX_COUNT) ? DEX_TBL[eggTarget].rarity : R_COMUN;
 }
 
 // elige la especie del huevo: tirada de rareza (mejorada por una despedida
@@ -247,7 +255,7 @@ int16_t Pet::pickEggSpecies() {
     for (int t = tier; t >= R_COMUN; t--) {
       int16_t cand[80];
       int n = 0;
-      for (int16_t d = 1; d <= 151 && n < 80; d++) {
+      for (int16_t d = 1; d <= DEX_COUNT && n < 80; d++) {
         if (DEX_TBL[d].rarity != t) continue;
         if (pass == 0 && !lineHasUnregistered(d)) continue;
         cand[n++] = d;
@@ -259,7 +267,7 @@ int16_t Pet::pickEggSpecies() {
 }
 
 void Pet::registerSpecies(int16_t dex) {
-  if (dex < 1 || dex > 151) return;
+  if (dex < 1 || dex > DEX_COUNT) return;
   bool wasKnown = isRegistered(dex) || isCaught(dex);
   dexReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
   if (shiny) dexShinyReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
@@ -404,27 +412,28 @@ uint16_t Pet::speStat() const {
 
 uint16_t Pet::registeredCount() const {
   uint16_t n = 0;
-  for (int i = 1; i <= 151; i++)
+  for (int i = 1; i <= DEX_COUNT; i++)
     if (isRegistered(i)) n++;
   return n;
 }
 
 uint16_t Pet::caughtCount() const {
   uint16_t n = 0;
-  for (int i = 1; i <= 151; i++)
+  for (int i = 1; i <= DEX_COUNT; i++)
     if (isCaught(i)) n++;
   return n;
 }
 
 uint16_t Pet::knownDexCount() const {
   uint16_t n = 0;
-  for (int i = 1; i <= 151; i++)
+  for (int i = 1; i <= DEX_COUNT; i++)
     if (isRegistered(i) || isCaught(i)) n++;
   return n;
 }
 
 uint8_t Pet::collectionRank() const {
   uint16_t known = knownDexCount();
+  if (known >= DEX_COUNT) return 6;
   if (known >= 151) return 5;
   if (known >= 100) return 4;
   if (known >= 50) return 3;
@@ -446,16 +455,16 @@ bool Pet::setCollectionFrame(uint8_t frame) {
 }
 
 uint8_t Pet::nextDexGoal() const {
-  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151 };
+  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151, DEX_COUNT };
   uint16_t known = knownDexCount();
   for (uint8_t i = 0; i < sizeof(GOALS); i++)
     if (known < GOALS[i]) return GOALS[i];
-  return 151;
+  return DEX_COUNT;
 }
 
 uint8_t Pet::applyDexRewards() {
   if (ceremony != CER_NONE || isEgg()) return 0;
-  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151 };
+  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151, DEX_COUNT };
   uint16_t known = knownDexCount();
   uint8_t reached = 0;
   for (uint8_t i = 0; i < sizeof(GOALS); i++) {
@@ -485,7 +494,7 @@ uint8_t Pet::applyDexRewards() {
 }
 
 void Pet::registerCaught(int16_t dex) {
-  if (dex < 1 || dex > 151) return;
+  if (dex < 1 || dex > DEX_COUNT) return;
   bool wasKnown = isRegistered(dex) || isCaught(dex);
   dexCaught[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
   noteDailyGoal(DAILY_GOAL_CATCH, 1);
@@ -1240,7 +1249,7 @@ void Pet::load() {
   shiny = prefs.getBool("shy", false);
   eggShiny = prefs.getBool("eshy", false);
   starterPick = prefs.getBool("stpk", false);
-  prefs.getBytes("dexsh", dexShinyReg, sizeof(dexShinyReg));
+  loadDexBitmap(prefs, "dexsh", dexShinyReg, sizeof(dexShinyReg));
   ageMinutes = prefs.getUInt("age", 0);
   if (prefs.isKey("dexn")) {
     speciesId = prefs.getShort("dexn", -1);
@@ -1258,8 +1267,8 @@ void Pet::load() {
   sleeping = prefs.getBool("sleep", false);
   lastEnd = prefs.getUChar("lend", CER_NONE);
   uint8_t pendingCeremony = prefs.getUChar("cerp", CER_NONE);
-  prefs.getBytes("dexreg", dexReg, sizeof(dexReg));
-  prefs.getBytes("dexcgt", dexCaught, sizeof(dexCaught));
+  loadDexBitmap(prefs, "dexreg", dexReg, sizeof(dexReg));
+  loadDexBitmap(prefs, "dexcgt", dexCaught, sizeof(dexCaught));
   streak = prefs.getUShort("strk", 0);
   bestStreak = prefs.getUShort("bstrk", 0);
   lastCareDay = prefs.getUInt("cday", 0);

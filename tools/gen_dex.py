@@ -55,13 +55,14 @@ def main():
     out = []
     out.append("#pragma once\n#include <stdint.h>\n\n")
     out.append("// GENERADO por tools/gen_dex.py desde tools/dex_data.py - no editar\n\n")
-    out.append("#define DEX_COUNT 151\n")
+    out.append(f"#define DEX_COUNT {len(DEX)}\n")
+    out.append("#define DEX_BITMAP_BYTES ((DEX_COUNT + 7) / 8)\n")
     out.append("#define DEX_EEVEE 133  // rama al azar: 134/135/136\n\n")
     out.append("#define DEX_LANG_COUNT 6\n\n")
     out.append(
         "// rareza: 0 = solo por evolucion, 1 = comun, 2 = raro, 3 = legendario\n"
         "enum : uint8_t { R_EVO = 0, R_COMUN, R_RARO, R_LEGENDARIO };\n\n"
-        "// tipos de combate: datos actuales de PokeAPI para las 151 especies Kanto\n"
+        "// tipos de combate: datos actuales de las especies incluidas\n"
         "enum : uint8_t {\n"
         "  TYPE_NONE = 0, TYPE_NORMAL, TYPE_FIRE, TYPE_WATER, TYPE_ELECTRIC, TYPE_GRASS,\n"
         "  TYPE_ICE, TYPE_FIGHTING, TYPE_POISON, TYPE_GROUND, TYPE_FLYING, TYPE_PSYCHIC,\n"

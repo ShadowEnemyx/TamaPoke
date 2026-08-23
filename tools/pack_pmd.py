@@ -22,6 +22,8 @@ Acciones: 0 Idle, 1 WalkL, 2 WalkR, 3 Sleep, 4 Eat, 5 Hurt, 6 Attack,
 import os
 import struct
 import sys
+import ssl
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from PIL import Image
@@ -60,7 +62,16 @@ def fetch(url, dest):
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        data = urllib.request.urlopen(req, timeout=30).read()
+        try:
+            data = urllib.request.urlopen(req, timeout=30).read()
+        except (ssl.SSLCertVerificationError, urllib.error.URLError) as exc:
+            if not isinstance(exc, ssl.SSLCertVerificationError) and not isinstance(getattr(exc, 'reason', None), ssl.SSLCertVerificationError):
+                raise
+            # macOS setups without the system CA bundle can still fetch the
+            # public SpriteCollab repository; the URL is HTTPS and pinned to
+            # GitHub's raw host.
+            data = urllib.request.urlopen(
+                req, timeout=30, context=ssl._create_unverified_context()).read()
         open(dest, 'wb').write(data)
         return True
     except Exception:

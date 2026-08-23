@@ -10,7 +10,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
-- Aktueller lokaler Gen-2/Wasserzeichen-Test: `1.33.0-gen2-watermark-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
+- Aktueller lokaler Gen-2/Wasserzeichen-Test: `1.34.0-gen2-full-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -37,15 +37,15 @@ Dateien sind bewusst nicht Teil des oeffentlichen Installationsflusses.
 
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
-- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.33.0-gen2-watermark-local`.
-- Die Serial-Befehle `CAUGHT`, `CAUGHT <dex>`, `BATTLE` und `BATTLE <dex>` sind
-  nur in diesem Testbuild aktiv.
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.34.0-gen2-full-local`.
+- Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
+  und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
   `web/manifest.json` eingetragen oder auf GitHub gepusht werden.
 
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
-- Branch: `local/gen2-watermark`
+- Branch: `local/full-gen2`
 - `fork`: `https://github.com/ShadowEnemyx/TamaPoke.git`
 - `origin`: `https://github.com/socquique/TamaPoke.git`
 - Der Ausgangspunkt ist lokal als `3b24ea8` (`chore: save local baseline before gen2 watermark`)
@@ -212,6 +212,15 @@ nicht gepusht:
 10. `1.32.1-local-test`
    - Lokale Testvariante mit zusaetzlichen Serial-Befehlen fuer Fangmarker und
      erzwungene Battle-Gegner. Nicht oeffentlich veroeffentlichen.
+11. `1.34.0-gen2-full-local`
+   - Vollstaendiger Dex #1-251 mit Gen-2-Namen, Werten, Typen, sechs Sprachen
+     und 122 Evolutionsregeln inklusive Eevee-, Baby- und Tyrogue-Verzweigungen.
+   - Eine Entwicklung benoetigt strikt drei von vier Pflegewerten ueber 40;
+     Bond, Tag/Nacht und Stat-Verhaeltnisse werden fuer passende Regeln geprueft.
+   - SpriteCollab-Normal-/Shiny-Dateien und Thumbnails fuer #161-251 sind lokal
+     gepackt; `sprites-gen2-update.pak` ist ein inkrementelles Update.
+   - `web/dev.html` bietet Auswahl und Testbuttons fuer alle 251 Arten ohne
+     Terminal; die Firmware-Befehle sind nur im lokalen Testbuild aktiv.
 
 ## Architektur und wichtige Dateien
 
@@ -274,7 +283,7 @@ arduino-cli compile --fqbn "$FQBN" \
 ```
 
 Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
-genannten `1.33.0-gen2-watermark-local`-Namen liegen. Die lokalen Parts sind
+genannten `1.34.0-gen2-full-local`-Namen liegen. Die lokalen Parts sind
 Build-Artefakte und bleiben bewusst von Git ignoriert. Danach:
 
 ```bash
@@ -296,7 +305,7 @@ Testupdate `Erase device` deaktiviert lassen.
      antippen pruefen.
    - Battle, Play-Menue, Memo, Expedition, Schlaf, PWR-Wakeup und Settings
      kurz pruefen.
-   - Im lokalen Testbuild `CAUGHT <dex>` und `BATTLE <dex>` pruefen; im
+   - Im lokalen Testbuild `TESTMON`, `TESTEVO`, `CAUGHT <dex>` und `BATTLE <dex>` pruefen; im
      oeffentlichen Build sind diese Debug-Befehle absichtlich nicht vorhanden.
 5. Erst nach ausdruecklicher Nutzerfreigabe committen/pushen/veroeffentlichen.
 

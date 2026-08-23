@@ -214,9 +214,14 @@ public:
     uint32_t left = deadlineRemaining(n, evolveUntil);
     return 1.0f - (float)left / (float)EVOLVE_ANIM_MS;
   }
-  bool evolutionUnlocked() const;  // nivel reicht, Form kann sich noch entwickeln
-  bool canEvolveNow() const;  // lista: unlocked + wach + alle Balken >= 40
-  void evolve();              // dispara la transformacion (la llama un toque del usuario)
+  bool evolutionUnlocked() const;  // nivel/condicion: al menos una forma disponible
+  bool canEvolveNow() const;  // lista: unlocked + wach + 3 de 4 valores > 40
+  uint8_t evolutionOptionCount() const;
+  int16_t evolutionOption(uint8_t index) const;
+  uint8_t evolutionRequiredLevel() const;
+  bool canEvolveTo(int16_t target) const;
+  void evolveTo(int16_t target);  // transforma a un objetivo elegido
+  void evolve();                  // compatibilidad: elige una opcion disponible
   bool canFarewellNow() const;  // forma final + 7 dias: lista para despedirse (boton)
   bool canRunawayNow() const;   // abandono total 1h: lista para escaparse (boton triste)
   // el usuario decide en un dialogo; "mantener/quedaros" pospone y re-ofrece luego
@@ -256,8 +261,13 @@ public:
   bool tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin, uint8_t luckRoll);
   bool tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, uint8_t luckRoll);
   bool lineHasUnregistered(int16_t base) const;
+  bool hasEvolutionPath(int16_t dex) const;
   uint8_t eggRarity() const;       // rareza del huevo actual (sin revelar especie)
   int16_t pickEggSpecies();        // publica para poder simular tiradas (EGGS)
+  uint8_t healthyStatCount() const {
+    return (uint8_t)((fullness > 40 ? 1 : 0) + (joy > 40 ? 1 : 0) +
+                     (energy > 40 ? 1 : 0) + (hygiene > 40 ? 1 : 0));
+  }
   uint8_t lowestStat() const { return min(min(fullness, joy), min(energy, hygiene)); }
   PetMood mood() const;
   // progreso de la ceremonia de despedida/escapada, 0..1 (para animarla)

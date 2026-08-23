@@ -212,17 +212,30 @@ void Pet::flushSave() {
   if (pendingSave) save();
 }
 
-// quedan miembros sin registrar en la linea evolutiva de esta base?
+bool Pet::hasEvolutionPath(int16_t dex) const {
+  if (dex < 1 || dex > DEX_COUNT) return false;
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++)
+    if (EVOLUTION_RULES[i].from == dex) return true;
+  return false;
+}
+
+// Quedan miembros sin registrar en la linea evolutiva de esta base? Se hace
+// un pequeno recorrido por el grafo para cubrir ramas (Eevee, Tyrogue, etc.).
 bool Pet::lineHasUnregistered(int16_t base) const {
-  int16_t cur = base;
-  for (int guard = 0; cur >= 1 && cur <= DEX_COUNT && guard < 6; guard++) {
+  int16_t pending[12];
+  uint8_t pendingCount = 0;
+  bool seen[DEX_COUNT + 1] = { false };
+  if (base >= 1 && base <= DEX_COUNT) pending[pendingCount++] = base;
+  while (pendingCount) {
+    int16_t cur = pending[--pendingCount];
+    if (cur < 1 || cur > DEX_COUNT || seen[cur]) continue;
+    seen[cur] = true;
     if (!isRegistered(cur)) return true;
-    if (cur == DEX_EEVEE) {
-      for (int16_t b = 134; b <= 136; b++)
-        if (!isRegistered(b)) return true;
-      return false;
+    for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+      const EvolutionRule &r = EVOLUTION_RULES[i];
+      if (r.from != cur || seen[r.to]) continue;
+      if (pendingCount < sizeof(pending) / sizeof(pending[0])) pending[pendingCount++] = r.to;
     }
-    cur = DEX_TBL[cur].evolvesTo;
   }
   return false;
 }
@@ -253,9 +266,9 @@ int16_t Pet::pickEggSpecies() {
   // si la pokedex del tier esta completa, vale cualquiera del tier
   for (int pass = 0; pass < 2; pass++) {
     for (int t = tier; t >= R_COMUN; t--) {
-      int16_t cand[80];
+      int16_t cand[DEX_COUNT];
       int n = 0;
-      for (int16_t d = 1; d <= DEX_COUNT && n < 80; d++) {
+      for (int16_t d = 1; d <= DEX_COUNT; d++) {
         if (DEX_TBL[d].rarity != t) continue;
         if (pass == 0 && !lineHasUnregistered(d)) continue;
         cand[n++] = d;
@@ -378,7 +391,7 @@ void Pet::checkMedals() {
   if (berryKnown) medals |= MED_BERRY;
   if (streak >= 7) medals |= MED_STREAK7;
   if (bond >= 100) medals |= MED_BOND;
-  if (DEX_TBL[speciesId].evolvesTo == 0) medals |= MED_FINAL;
+  if (!hasEvolutionPath(speciesId)) medals |= MED_FINAL;
   if (weight == 0 && level() >= 5 && careMistakes == 0) medals |= MED_FIT;
   uint16_t gained = medals & ~before;
   if (gained) {
@@ -433,13 +446,11 @@ uint16_t Pet::knownDexCount() const {
 
 uint8_t Pet::collectionRank() const {
   uint16_t known = knownDexCount();
-  if (known >= DEX_COUNT) return 6;
-  if (known >= 151) return 5;
-  if (known >= 100) return 4;
-  if (known >= 50) return 3;
-  if (known >= 25) return 2;
-  if (known >= 10) return 1;
-  return 0;
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
+  uint8_t rank = 0;
+  for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++)
+    if (known >= GOALS[i]) rank = i + 1;
+  return rank;
 }
 
 uint8_t Pet::unlockedCollectionFrameCount() const {
@@ -455,23 +466,23 @@ bool Pet::setCollectionFrame(uint8_t frame) {
 }
 
 uint8_t Pet::nextDexGoal() const {
-  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151, DEX_COUNT };
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
   uint16_t known = knownDexCount();
-  for (uint8_t i = 0; i < sizeof(GOALS); i++)
-    if (known < GOALS[i]) return GOALS[i];
-  return DEX_COUNT;
+  for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++)
+    if (known < GOALS[i]) return (uint8_t)GOALS[i];
+  return 251;
 }
 
 uint8_t Pet::applyDexRewards() {
   if (ceremony != CER_NONE || isEgg()) return 0;
-  static const uint8_t GOALS[] = { 10, 25, 50, 100, 151, DEX_COUNT };
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
   uint16_t known = knownDexCount();
   uint8_t reached = 0;
-  for (uint8_t i = 0; i < sizeof(GOALS); i++) {
+  for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++) {
     uint8_t bit = 1 << i;
     if (known < GOALS[i] || (dexRewardMask & bit)) continue;
     dexRewardMask |= bit;
-    reached = GOALS[i];
+    reached = (uint8_t)GOALS[i];
     if (GOALS[i] == 10) joy = clamp100((int)joy + 5);
     else if (GOALS[i] == 25) addBond(2);
     else if (GOALS[i] == 50) {
@@ -555,7 +566,7 @@ bool Pet::tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLev
 // despedida la dispara el usuario con el boton (no salta sola, para que la vea)
 bool Pet::canFarewellNow() const {
   return !isEgg() && !sleeping && ceremony == CER_NONE &&
-         DEX_TBL[speciesId].evolvesTo == 0 && ageMinutes >= FAREWELL_AGE_MIN;
+         !hasEvolutionPath(speciesId) && ageMinutes >= FAREWELL_AGE_MIN;
 }
 
 // abandono total durante 1h: lista para escaparse. La dispara el usuario con el
@@ -617,20 +628,89 @@ void Pet::hatch() {
   save();
 }
 
-// Nivel + Patzer reichen fuer die Entwicklungs-Taste. Die eigentliche
-// Verwandlung (canEvolveNow) verlangt zusaetzlich wach und alle Balken >= 40.
+// Los niveles y condiciones de evolucion viven en EVOLUTION_RULES para poder
+// representar ramas y evoluciones de amistad/RTC sin romper partidas antiguas.
+static bool evolutionRuleReady(const Pet &pet, const EvolutionRule &rule) {
+  uint16_t need = (uint16_t)rule.minLevel + pet.careMistakes;
+  if (need > 100 || pet.level() < (uint8_t)need) return false;
+  switch (rule.condition) {
+    case EVO_BOND:
+      return pet.bond >= 50;
+    case EVO_DAY_BOND: {
+      int hour = sceneHourFromEpoch(pet.lastSeenEpoch);
+      return pet.bond >= 50 && hour >= 6 && hour < 20;
+    }
+    case EVO_NIGHT_BOND: {
+      int hour = sceneHourFromEpoch(pet.lastSeenEpoch);
+      return pet.bond >= 50 && (hour < 6 || hour >= 20);
+    }
+    case EVO_ATK_GT_DEF:
+      return pet.atkStat() > pet.defStat();
+    case EVO_DEF_GT_ATK:
+      return pet.defStat() > pet.atkStat();
+    case EVO_ATK_EQ_DEF:
+      return pet.atkStat() == pet.defStat();
+    default:
+      return true;
+  }
+}
+
+uint8_t Pet::evolutionOptionCount() const {
+  if (isEgg() || ceremony != CER_NONE || speciesId < 1 || speciesId > DEX_COUNT) return 0;
+  uint8_t count = 0;
+  int16_t seen[8] = { 0 };
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId || !evolutionRuleReady(*this, rule)) continue;
+    bool duplicate = false;
+    for (uint8_t j = 0; j < count; j++) if (seen[j] == rule.to) duplicate = true;
+    if (!duplicate && count < sizeof(seen) / sizeof(seen[0])) seen[count++] = rule.to;
+  }
+  return count;
+}
+
+int16_t Pet::evolutionOption(uint8_t index) const {
+  if (isEgg() || ceremony != CER_NONE || speciesId < 1 || speciesId > DEX_COUNT) return -1;
+  uint8_t count = 0;
+  int16_t seen[8] = { 0 };
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId || !evolutionRuleReady(*this, rule)) continue;
+    bool duplicate = false;
+    for (uint8_t j = 0; j < count; j++) if (seen[j] == rule.to) duplicate = true;
+    if (duplicate || count >= sizeof(seen) / sizeof(seen[0])) continue;
+    seen[count] = rule.to;
+    if (count == index) return rule.to;
+    count++;
+  }
+  return -1;
+}
+
+uint8_t Pet::evolutionRequiredLevel() const {
+  if (isEgg() || speciesId < 1 || speciesId > DEX_COUNT) return 100;
+  uint16_t best = 100;
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId) continue;
+    uint16_t need = (uint16_t)rule.minLevel + careMistakes;
+    if (need < best) best = need;
+  }
+  return best > 100 ? 100 : (uint8_t)best;
+}
+
 bool Pet::evolutionUnlocked() const {
-  if (isEgg() || ceremony != CER_NONE) return false;
-  if (speciesId < 1 || speciesId > DEX_COUNT) return false;
-  const DexEntry &d = DEX_TBL[speciesId];
-  if (d.evolvesTo == 0) return false;
-  uint16_t need = (uint16_t)d.evolveLevel + careMistakes;
-  if (need > 100) need = 100;
-  return level() >= (uint8_t)need;
+  return evolutionOptionCount() > 0;
+}
+
+bool Pet::canEvolveTo(int16_t target) const {
+  if (!canEvolveNow() || target < 1 || target > DEX_COUNT) return false;
+  for (uint8_t i = 0; i < evolutionOptionCount(); i++)
+    if (evolutionOption(i) == target) return true;
+  return false;
 }
 
 bool Pet::canEvolveNow() const {
-  return evolutionUnlocked() && !sleeping && lowestStat() >= 40;
+  return evolutionUnlocked() && !sleeping && healthyStatCount() >= 3;
 }
 
 bool Pet::wantEvolveButton() const {
@@ -649,24 +729,25 @@ void Pet::declineEvolve() {
   save();
 }
 
-void Pet::evolve() {
-  if (!canEvolveNow()) return;
-  const DexEntry &d = DEX_TBL[speciesId];
+void Pet::evolveTo(int16_t target) {
+  if (!canEvolveTo(target)) return;
   prevSpeciesId = speciesId;
-  int16_t next = d.evolvesTo;
-  if (speciesId == DEX_EEVEE) {
-    // rama de Eevee: prefiere la evolucion que falte en la pokedex
-    int16_t opts[3];
-    int n = 0;
-    for (int16_t b = 134; b <= 136; b++)
-      if (!isRegistered(b)) opts[n++] = b;
-    next = n > 0 ? opts[random(n)] : (int16_t)(134 + random(3));
-  }
-  speciesId = next;
+  speciesId = target;
   registerSpecies(speciesId);
   sfxPlay(SFX_EVOLVE);
   evolveUntil = millis() + EVOLVE_ANIM_MS;
   save();
+}
+
+void Pet::evolve() {
+  if (!canEvolveNow()) return;
+  int16_t next = -1;
+  for (uint8_t i = 0; i < evolutionOptionCount(); i++) {
+    int16_t candidate = evolutionOption(i);
+    if (candidate >= 1 && !isRegistered(candidate)) { next = candidate; break; }
+    if (next < 0) next = candidate;
+  }
+  if (next >= 1) evolveTo(next);
 }
 
 void Pet::feed() {

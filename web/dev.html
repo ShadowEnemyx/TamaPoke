@@ -43,8 +43,8 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.33.0-gen2-watermark-local</b> · 23 Aug 2026</p>
-  <p class="sub">A 160-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
+  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.34.0-gen2-full-local</b> · 23 Aug 2026</p>
+  <p class="sub">A 251-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
 
@@ -55,10 +55,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.33.0-gen2-watermark-local</b> from 23 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.34.0-gen2-full-local</b> from 23 Aug 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest-local.json?v=1.33.0-gen2-watermark-local">
-      <button slot="activate">⚡ Install LOCAL test 1.33.0</button>
+    <esp-web-install-button manifest="manifest-local.json?v=1.34.0-gen2-full-local">
+      <button slot="activate">⚡ Install LOCAL test 1.34.0</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -72,14 +72,16 @@
   <div class="step">
     <p>Put a microSD into the board (it formats itself). Press <b>Connect board</b>
        and then <b>Load sprites</b>: they download and copy over USB automatically
-       (~42 MB, a few minutes). Don't remove the card.</p>
+       (~25 MB for the Gen-2 update, a few minutes). Don't remove the card.</p>
     <p class="note">Close the step-1 install tab first (only one program can use
        the port at a time).</p>
     <div class="row">
       <button id="connect">🔌 Connect board</button>
-      <button id="auto" disabled>⬇️ Load sprites</button>
+      <button id="auto" disabled>⬇️ Load Gen-2 update</button>
+      <button id="full" disabled>🧹 Load full 251 package</button>
     </div>
     <p class="note">Have your own <code>.bin</code> files? <label style="cursor:pointer;text-decoration:underline">pick them manually<input id="files" type="file" accept=".bin" multiple disabled hidden></label></p>
+    <p class="note">The Gen-2 update assumes #1–160 are already on the card. Use the full package for an empty/new card.</p>
     <p class="note">🎨 Want to make your own sprites? See <a href="https://github.com/ShadowEnemyx/TamaPoke#generate-and-load-the-sprites-yourself" target="_blank">how to generate &amp; load them</a> in the repo.</p>
     <div class="bar" id="bar"><div></div></div>
     <pre id="log"></pre>
@@ -90,22 +92,23 @@
     <p>After connecting the board above, click a Pokémon to show it immediately
        on the device. The buttons use the local debug firmware over Web Serial —
        no terminal or <code>screen</code> command is needed.</p>
-    <div class="test-grid" id="test-controls">
-      <button data-test-command="SPEC 152" disabled>#152 Chikorita</button>
-      <button data-test-command="SPEC 153" disabled>#153 Bayleef</button>
-      <button data-test-command="SPEC 154" disabled>#154 Meganium</button>
-      <button data-test-command="SPEC 155" disabled>#155 Cyndaquil</button>
-      <button data-test-command="SPEC 156" disabled>#156 Quilava</button>
-      <button data-test-command="SPEC 157" disabled>#157 Typhlosion</button>
-      <button data-test-command="SPEC 158" disabled>#158 Totodile</button>
-      <button data-test-command="SPEC 159" disabled>#159 Croconaw</button>
-      <button data-test-command="SPEC 160" disabled>#160 Feraligatr</button>
+    <div class="row">
+      <label for="dex-select">Pokémon:</label>
+      <select id="dex-select"></select>
+      <button id="show-pet" disabled>🐾 Show as pet</button>
+      <button id="show-shiny" disabled>✨ Show shiny</button>
     </div>
     <div class="row test-actions">
-      <button data-test-command="SHINY" disabled>✨ Toggle shiny</button>
+      <button id="battle-selected" disabled>⚔️ Battle selected</button>
+      <button id="mark-selected" disabled>✅ Mark caught</button>
+      <label for="evo-target">Evolution target:</label>
+      <select id="evo-target"><option value="0">automatic</option></select>
+      <button id="evolution-test" disabled>🧬 Prepare evolution</button>
       <button id="mark-gen2" disabled>✅ Mark all Gen 2 caught</button>
+    </div>
+    <div class="row test-actions">
       <button data-test-command="GAL" disabled>📖 Toggle gallery</button>
-      <button data-test-command="BATTLE 160" disabled>⚔️ Battle #160</button>
+      <button data-test-command="SHINY" disabled>🔁 Toggle shiny</button>
     </div>
     <pre id="test-log"></pre>
   </div>
@@ -129,7 +132,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest-local.json?v=1.33.0-gen2-watermark-local')
+fetch('manifest-local.json?v=1.34.0-gen2-full-local')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;
@@ -155,8 +158,51 @@ let serialBusy = false;
 
 const testLog = (m) => { const el = document.getElementById('test-log'); el.style.display='block';
   el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
-const testButtons = [...document.querySelectorAll('[data-test-command]'), document.getElementById('mark-gen2')];
+const testButtons = [
+  ...document.querySelectorAll('[data-test-command]'),
+  ...document.querySelectorAll('#show-pet, #show-shiny, #battle-selected, #mark-selected, #evolution-test, #mark-gen2')
+];
 const setTestButtons = (enabled) => testButtons.forEach((b) => { if (b) b.disabled = !enabled; });
+
+const dexNames = [
+  'Chikorita','Bayleef','Meganium','Cyndaquil','Quilava','Typhlosion','Totodile','Croconaw','Feraligatr',
+  'Sentret','Furret','Hoothoot','Noctowl','Ledyba','Ledian','Spinarak','Ariados','Crobat','Chinchou','Lanturn',
+  'Pichu','Cleffa','Igglybuff','Togepi','Togetic','Natu','Xatu','Mareep','Flaaffy','Ampharos','Bellossom','Marill',
+  'Azumarill','Sudowoodo','Politoed','Hoppip','Skiploom','Jumpluff','Aipom','Sunkern','Sunflora','Yanma','Wooper',
+  'Quagsire','Espeon','Umbreon','Murkrow','Slowking','Misdreavus','Unown','Wobbuffet','Girafarig','Pineco','Forretress',
+  'Dunsparce','Gligar','Steelix','Snubbull','Granbull','Qwilfish','Scizor','Shuckle','Heracross','Sneasel','Teddiursa',
+  'Ursaring','Slugma','Magcargo','Swinub','Piloswine','Corsola','Remoraid','Octillery','Delibird','Mantine','Skarmory',
+  'Houndour','Houndoom','Kingdra','Phanpy','Donphan','Porygon2','Stantler','Smeargle','Tyrogue','Hitmontop','Smoochum',
+  'Elekid','Magby','Miltank','Blissey','Raikou','Entei','Suicune','Larvitar','Pupitar','Tyranitar','Lugia','Ho-Oh','Celebi'
+];
+const dexSelect = document.getElementById('dex-select');
+for (let i = 0; i < dexNames.length; i++) {
+  const dex = i + 152;
+  const opt = document.createElement('option');
+  opt.value = dex;
+  opt.textContent = `#${dex} ${dexNames[i]}`;
+  dexSelect.appendChild(opt);
+}
+const evoTargetMap = {
+  42: [169], 44: [45, 182], 61: [62, 186], 79: [80, 199], 95: [208],
+  113: [242], 117: [230], 123: [212], 133: [134, 135, 136, 196, 197],
+  137: [233], 236: [106, 107, 237]
+};
+for (const [dex, name] of [[42, 'Golbat'], [44, 'Gloom'], [61, 'Poliwhirl'], [79, 'Slowpoke'],
+  [95, 'Onix'], [113, 'Chansey'], [117, 'Seadra'], [123, 'Scyther'], [133, 'Eevee'], [137, 'Porygon']]) {
+  dexSelect.insertBefore(new Option(`#${dex} ${name} (evolution test)`, String(dex)), dexSelect.firstChild);
+}
+dexSelect.value = '152';
+const evoTarget = document.getElementById('evo-target');
+function refreshEvolutionTargets() {
+  evoTarget.replaceChildren(new Option('automatic', '0'));
+  for (const dex of (evoTargetMap[dexSelect.value] || [])) {
+    const name = dexNames[dex - 152] || `#${dex}`;
+    evoTarget.appendChild(new Option(`#${dex} ${name}`, String(dex)));
+  }
+}
+dexSelect.onchange = refreshEvolutionTargets;
+refreshEvolutionTargets();
 
 async function readLine(timeoutMs = 6000) {
   const deadline = Date.now() + timeoutMs;
@@ -267,8 +313,15 @@ async function sendAll(items) {
 document.querySelectorAll('[data-test-command]').forEach((button) => {
   button.onclick = () => sendTestCommands([button.dataset.testCommand]);
 });
+const selectedDex = () => Number(dexSelect.value);
+document.getElementById('show-pet').onclick = () => sendTestCommands([`TESTMON ${selectedDex()} 0`]);
+document.getElementById('show-shiny').onclick = () => sendTestCommands([`TESTMON ${selectedDex()} 1`]);
+document.getElementById('battle-selected').onclick = () => sendTestCommands([`BATTLE ${selectedDex()}`]);
+document.getElementById('mark-selected').onclick = () => sendTestCommands([`CAUGHT ${selectedDex()}`]);
+document.getElementById('evolution-test').onclick = () =>
+  sendTestCommands([`TESTEVO ${selectedDex()} ${Number(evoTarget.value)}`]);
 document.getElementById('mark-gen2').onclick = () => sendTestCommands(
-  [152, 153, 154, 155, 156, 157, 158, 159, 160].map((n) => `CAUGHT ${n}`));
+  Array.from({ length: 100 }, (_, i) => `CAUGHT ${i + 152}`));
 
 document.getElementById('connect').onclick = async () => {
   try {
@@ -277,27 +330,37 @@ document.getElementById('connect').onclick = async () => {
     reader = port.readable.getReader();
     writer = port.writable.getWriter();
     lineBuf = '';
-    log('Connected. Press "Load sprites".');
+    log('Connected. Press "Load Gen-2 update".');
     document.getElementById('auto').disabled = false;
+    document.getElementById('full').disabled = false;
     document.getElementById('files').disabled = false;
     document.getElementById('connect').disabled = true;
     setTestButtons(true);
   } catch (e) { log('Could not connect: ' + e.message); }
 };
 
-document.getElementById('auto').onclick = async () => {
+async function loadBundle(path, label) {
   if (!writer) { log('Connect the board first.'); return; }
-  document.getElementById('auto').disabled = true;
-  log('Downloading sprite bundle (~58 MB)...');
+  log(`Downloading ${label}...`);
   let items;
   try {
-    // sprites.pak servido desde el mismo origen (GitHub Pages) -> sin lios de CORS
-    const resp = await fetch('sprites.pak');
+    const resp = await fetch(path);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     items = parsePak(await resp.arrayBuffer());
-  } catch (e) { log('Could not download sprites.pak: ' + e.message); return; }
+  } catch (e) { log(`Could not download ${path}: ${e.message}`); return; }
   log(`${items.length} sprites. Sending over USB...`);
   await sendAll(items);
+}
+
+document.getElementById('auto').onclick = async () => {
+  document.getElementById('auto').disabled = true;
+  await loadBundle('sprites-gen2-update.pak', 'Gen-2 update (~25 MB)');
+  document.getElementById('auto').disabled = false;
+};
+document.getElementById('full').onclick = async () => {
+  document.getElementById('full').disabled = true;
+  await loadBundle('sprites.pak', 'full 251-Pokemon bundle (~67 MB)');
+  document.getElementById('full').disabled = false;
 };
 
 document.getElementById('files').onchange = async (ev) => {

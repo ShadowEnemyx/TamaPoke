@@ -1,16 +1,16 @@
 {
   "name": "TamaPoke local test",
-  "version": "1.33.0-gen2-watermark-local",
+  "version": "1.34.0-gen2-full-local",
   "released": "2026-08-23",
   "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32-S3",
       "parts": [
-        { "path": "firmware/tamapoke-1.33.0-gen2-watermark-local-bootloader.bin", "offset": 0 },
-        { "path": "firmware/tamapoke-1.33.0-gen2-watermark-local-partitions.bin", "offset": 32768 },
-        { "path": "firmware/tamapoke-1.33.0-gen2-watermark-local-boot_app0.bin", "offset": 57344 },
-        { "path": "firmware/tamapoke-1.33.0-gen2-watermark-local-app.bin", "offset": 65536 }
+        { "path": "firmware/tamapoke-1.34.0-gen2-full-local-bootloader.bin", "offset": 0 },
+        { "path": "firmware/tamapoke-1.34.0-gen2-full-local-partitions.bin", "offset": 32768 },
+        { "path": "firmware/tamapoke-1.34.0-gen2-full-local-boot_app0.bin", "offset": 57344 },
+        { "path": "firmware/tamapoke-1.34.0-gen2-full-local-app.bin", "offset": 65536 }
       ]
     }
   ]

@@ -14,20 +14,32 @@ fichero a la placa con el protocolo PUT (igual que tools/send_sd.py).
 import glob
 import os
 import struct
+import sys
 
 HERE = os.path.dirname(__file__)
 MONS = os.path.join(HERE, 'sdcard', 'mons')
 OUT = os.path.join(HERE, '..', 'web', 'sprites.pak')
+GEN2_OUT = os.path.join(HERE, '..', 'web', 'sprites-gen2-update.pak')
 
 
 def main():
-    files = sorted(glob.glob(os.path.join(MONS, '*.bin')))
+    gen2_only = '--gen2' in sys.argv[1:]
+    if gen2_only:
+        files = [os.path.join(MONS, f'p{n:03d}.bin') for n in range(161, 252)]
+        files += [os.path.join(MONS, f'ps{n:03d}.bin') for n in range(161, 252)]
+        # thumbs.bin is a complete index and must accompany a partial sprite
+        # update so the gallery can address all 251 entries.
+        files.append(os.path.join(MONS, 'thumbs.bin'))
+        out_path = GEN2_OUT
+    else:
+        files = sorted(glob.glob(os.path.join(MONS, '*.bin')))
+        out_path = OUT
     if not files:
         raise SystemExit('no hay sprites en ' + MONS)
     names = ['mons/' + os.path.basename(f) for f in files]
     blobs = [open(f, 'rb').read() for f in files]
 
-    with open(OUT, 'wb') as o:
+    with open(out_path, 'wb') as o:
         o.write(b'TPAK')
         o.write(struct.pack('<H', len(files)))
         for name, blob in zip(names, blobs):
@@ -39,8 +51,8 @@ def main():
             o.write(blob)
 
     total = sum(len(b) for b in blobs)
-    print(f'{os.path.normpath(OUT)}: {len(files)} sprites, {total / 1048576:.1f} MB datos '
-          f'({os.path.getsize(OUT) / 1048576:.1f} MB total)')
+    print(f'{os.path.normpath(out_path)}: {len(files)} sprites, {total / 1048576:.1f} MB datos '
+          f'({os.path.getsize(out_path) / 1048576:.1f} MB total)')
 
 
 if __name__ == '__main__':

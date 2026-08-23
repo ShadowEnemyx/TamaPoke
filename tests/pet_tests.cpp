@@ -68,10 +68,15 @@ static void testEvolutionRequiresLevelAndHealthyStats() {
   pet.ageMinutes = 15 * MINUTES_PER_LEVEL;
   pet.fullness = 39;
 
-  EXPECT_TRUE(!pet.canEvolveNow());
+  // Drei von vier Werten ueber 40 reichen jetzt aus.
+  EXPECT_TRUE(pet.canEvolveNow());
   EXPECT_TRUE(pet.wantEvolveButton());
 
+  pet.joy = 39;
+  EXPECT_TRUE(!pet.canEvolveNow());
+
   pet.fullness = 40;
+  pet.joy = 41;
   EXPECT_TRUE(pet.canEvolveNow());
   EXPECT_TRUE(pet.wantEvolveButton());
 
@@ -90,6 +95,7 @@ static void testEvolveOfferStaysWhenStatsDipAndReoffersAtCap() {
 
   pet.ageMinutes = 27 * MINUTES_PER_LEVEL;  // Lv.28
   pet.joy = 10;
+  pet.energy = 10;
   EXPECT_TRUE(pet.evolutionUnlocked());
   EXPECT_TRUE(pet.wantEvolveButton());
   EXPECT_TRUE(!pet.canEvolveNow());
@@ -98,6 +104,7 @@ static void testEvolveOfferStaysWhenStatsDipAndReoffersAtCap() {
   EXPECT_TRUE(!pet.wantEvolveButton());
   pet.ageMinutes = 28 * MINUTES_PER_LEVEL;  // Lv.29
   pet.joy = 80;
+  pet.energy = 80;
   EXPECT_TRUE(pet.wantEvolveButton());
   EXPECT_TRUE(pet.canEvolveNow());
 
@@ -859,6 +866,40 @@ static void testMorningGreetingOncePerDay() {
   EXPECT_TRUE(!pet.takeMorningGreeting());
 }
 
+static bool hasEvolutionTarget(const Pet &pet, int16_t target) {
+  for (uint8_t i = 0; i < pet.evolutionOptionCount(); i++)
+    if (pet.evolutionOption(i) == target) return true;
+  return false;
+}
+
+static void testGen2EvolutionBranches() {
+  Pet eevee = hatchedPet(133);
+  eevee.ageMinutes = 30 * MINUTES_PER_LEVEL;
+  eevee.bond = 50;
+  eevee.lastSeenEpoch = 1767276000UL;  // daytime
+  EXPECT_EQ(eevee.evolutionOptionCount(), 4);
+  EXPECT_TRUE(hasEvolutionTarget(eevee, 134));
+  EXPECT_TRUE(hasEvolutionTarget(eevee, 135));
+  EXPECT_TRUE(hasEvolutionTarget(eevee, 136));
+  EXPECT_TRUE(hasEvolutionTarget(eevee, 196));
+  EXPECT_TRUE(!hasEvolutionTarget(eevee, 197));
+
+  eevee.lastSeenEpoch = 1767225600UL;  // night
+  EXPECT_EQ(eevee.evolutionOptionCount(), 4);
+  EXPECT_TRUE(hasEvolutionTarget(eevee, 197));
+  EXPECT_TRUE(!hasEvolutionTarget(eevee, 196));
+
+  Pet tyrogue = hatchedPet(236);
+  tyrogue.ageMinutes = 20 * MINUTES_PER_LEVEL;
+  tyrogue.geneAtk = tyrogue.geneDef = 100;
+  tyrogue.trAtk = 80;
+  EXPECT_EQ(tyrogue.evolutionOptionCount(), 1);
+  EXPECT_EQ(tyrogue.evolutionOption(0), 106);
+  tyrogue.trDef = 80;
+  EXPECT_EQ(tyrogue.evolutionOptionCount(), 1);
+  EXPECT_EQ(tyrogue.evolutionOption(0), 237);
+}
+
 static void testGen2StarterFamiliesAndDexCompletion() {
   EXPECT_EQ(DEX_TBL[152].evolvesTo, 153);
   EXPECT_EQ(DEX_TBL[153].evolvesTo, 154);
@@ -877,10 +918,10 @@ static void testGen2StarterFamiliesAndDexCompletion() {
 
   for (int16_t dex = 1; dex <= DEX_COUNT; dex++) pet.registerCaught(dex);
   EXPECT_EQ(pet.knownDexCount(), DEX_COUNT);
-  EXPECT_EQ(pet.collectionRank(), 6);
+  EXPECT_EQ(pet.collectionRank(), 8);
   EXPECT_EQ(pet.nextDexGoal(), DEX_COUNT);
-  EXPECT_EQ(pet.unlockedCollectionFrameCount(), 7);
-  EXPECT_TRUE(pet.setCollectionFrame(6));
+  EXPECT_EQ(pet.unlockedCollectionFrameCount(), 9);
+  EXPECT_TRUE(pet.setCollectionFrame(8));
 }
 
 int main() {
@@ -924,6 +965,7 @@ int main() {
   testShakePlayHasCooldownAndDailyCap();
   testWalkGivesCappedJoyAndBond();
   testMorningGreetingOncePerDay();
+  testGen2EvolutionBranches();
   testGen2StarterFamiliesAndDexCompletion();
 
   if (failures) {

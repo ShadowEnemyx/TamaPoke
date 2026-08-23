@@ -7,7 +7,10 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from dex_data import DEX, TYPE_ACCENTS, BATTLE_TYPES, CLASSIC, RARE, LEGENDARY, LOCALIZED_NAMES
+from dex_data import (
+    DEX, TYPE_ACCENTS, BATTLE_TYPES, CLASSIC, RARE, LEGENDARY, LOCALIZED_NAMES,
+    EVOLUTION_RULE_OVERRIDES, EVOLUTION_EXTRA,
+)
 from dex_stats import BASE_STATS
 
 
@@ -22,7 +25,7 @@ TYPE_BIOME = {
     'agua': 1, 'planta': 2, 'bicho': 2, 'fuego': 3,
     'roca': 4, 'tierra': 4, 'dragon': 1, 'hielo': 5,  # los dragones gen1 (Dratini) viven en el agua
     'normal': 0, 'electrico': 0, 'lucha': 0, 'veneno': 0,
-    'psiquico': 0, 'fantasma': 0,
+    'psiquico': 0, 'fantasma': 0, 'siniestro': 0, 'acero': 4,
 }
 
 # excepciones por dex# (el tipo no basta): fosiles marinos roca/agua -> playa
@@ -57,7 +60,7 @@ def main():
     out.append("// GENERADO por tools/gen_dex.py desde tools/dex_data.py - no editar\n\n")
     out.append(f"#define DEX_COUNT {len(DEX)}\n")
     out.append("#define DEX_BITMAP_BYTES ((DEX_COUNT + 7) / 8)\n")
-    out.append("#define DEX_EEVEE 133  // rama al azar: 134/135/136\n\n")
+    out.append("#define DEX_EEVEE 133  // rama: 134/135/136/196/197\n\n")
     out.append("#define DEX_LANG_COUNT 6\n\n")
     out.append(
         "// rareza: 0 = solo por evolucion, 1 = comun, 2 = raro, 3 = legendario\n"
@@ -67,6 +70,16 @@ def main():
         "  TYPE_NONE = 0, TYPE_NORMAL, TYPE_FIRE, TYPE_WATER, TYPE_ELECTRIC, TYPE_GRASS,\n"
         "  TYPE_ICE, TYPE_FIGHTING, TYPE_POISON, TYPE_GROUND, TYPE_FLYING, TYPE_PSYCHIC,\n"
         "  TYPE_BUG, TYPE_ROCK, TYPE_GHOST, TYPE_DRAGON, TYPE_DARK, TYPE_STEEL, TYPE_FAIRY\n"
+        "};\n\n"
+        "enum EvolutionCondition : uint8_t {\n"
+        "  EVO_LEVEL = 0, EVO_BOND, EVO_DAY_BOND, EVO_NIGHT_BOND,\n"
+        "  EVO_ATK_GT_DEF, EVO_DEF_GT_ATK, EVO_ATK_EQ_DEF\n"
+        "};\n"
+        "struct EvolutionRule {\n"
+        "  uint8_t from;\n"
+        "  uint8_t to;\n"
+        "  uint8_t minLevel;\n"
+        "  uint8_t condition;\n"
         "};\n\n"
         "struct DexEntry {\n"
         "  const char *name;\n"
@@ -78,9 +91,21 @@ def main():
         "  uint8_t type1, type2; // tipos de combate, TYPE_NONE si no hay secundario\n"
         "  uint8_t biome;        // 0 pradera 1 playa 2 bosque 3 volcan 4 montana 5 nieve\n"
         "};\n\n")
-    # formas base = las que no son evolucion de nadie (las ramas de Eevee si lo son)
-    evolved = {evo for *_, evo, _lvl in [(d[4], d[5]) for d in DEX] for evo in [_[0] for _ in [(d[4],) for d in DEX]]}
-    evolved = {d[4] for d in DEX if d[4]} | {135, 136}
+    rules = []
+    for num, _slug, _display, _typ, evo, lvl in DEX:
+        override = EVOLUTION_RULE_OVERRIDES.get(num)
+        if override is not None:
+            rules.extend((num, to, level, condition) for to, level, condition in override)
+        elif evo:
+            rules.append((num, evo, lvl, 'LEVEL'))
+    rules.extend(EVOLUTION_EXTRA)
+    condition_ids = {
+        'LEVEL': 'EVO_LEVEL', 'BOND': 'EVO_BOND',
+        'DAY_BOND': 'EVO_DAY_BOND', 'NIGHT_BOND': 'EVO_NIGHT_BOND',
+        'ATK_GT_DEF': 'EVO_ATK_GT_DEF', 'DEF_GT_ATK': 'EVO_DEF_GT_ATK',
+        'ATK_EQ_DEF': 'EVO_ATK_EQ_DEF',
+    }
+    evolved = {rule[1] for rule in rules}
     rarities = []
     out.append("static const DexEntry DEX_TBL[DEX_COUNT + 1] = {\n")
     out.append('  { "?", 0, 0, 0, 0x2946, 50, 50, 50, 50, TYPE_NONE, TYPE_NONE, 0 },  // 0: sin usar\n')
@@ -102,6 +127,12 @@ def main():
         t2 = "TYPE_NONE" if type2 is None else f"TYPE_{type2.upper()}"
         out.append(f'  {{ "{display}", {evo}, {lvl}, {rar}, 0x{acc:04X}, {hp}, {atk}, {df}, {spe}, {t1}, {t2}, {bio} }},  // {num} {type1}' + (f'/{type2}' if type2 else '') + '\n')
     out.append("};\n\n")
+    out.append("// Evoluciones, incluidas ramas y condiciones especiales.\n")
+    out.append("static const EvolutionRule EVOLUTION_RULES[] = {\n")
+    for source, target, level, condition in rules:
+        out.append(f"  {{ {source}, {target}, {level}, {condition_ids[condition]} }},\n")
+    out.append("};\n")
+    out.append(f"#define EVOLUTION_RULE_COUNT {len(rules)}\n\n")
     out.append("// nombres localizados en el orden de Lang: ES, EN, FR, DE, IT, PT\n")
     out.append("static const char *const DEX_NAMES[DEX_LANG_COUNT][DEX_COUNT + 1] = {\n")
     lang_labels = ("ES", "EN", "FR", "DE", "IT", "PT")

@@ -24,7 +24,7 @@
   esp-web-install-button[install-unsupported] { display:none; }
   .unsupported { display:none; color:var(--bad); font-weight:500; }
   .row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
-  #log { font-family: ui-monospace, monospace; font-size:.85rem; background:#1b1b25; color:#d8dcf0;
+  #log, #test-log { font-family: ui-monospace, monospace; font-size:.85rem; background:#1b1b25; color:#d8dcf0;
          border-radius:10px; padding:.75rem 1rem; margin-top:1rem; max-height:220px; overflow:auto; white-space:pre-wrap; display:none; }
   .bar { height:10px; background:var(--track); border-radius:5px; overflow:hidden; margin-top:.75rem; display:none; }
   .bar > div { height:100%; width:0; background:var(--ok); transition: width .15s; }
@@ -35,6 +35,9 @@
          background:#fff; border:1px solid var(--track); border-radius:999px;
          font-size:.95rem; color:var(--ink); }
   .ver b { font-variant-numeric: tabular-nums; }
+  .test-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:.55rem; }
+  .test-grid button { padding:.5rem .65rem; text-align:left; }
+  .test-actions { margin-top:.75rem; }
 </style>
 </head>
 <body>
@@ -82,6 +85,31 @@
     <pre id="log"></pre>
   </div>
 
+  <h2><span class="num">3</span> Test Gen 2 with clicks</h2>
+  <div class="step">
+    <p>After connecting the board above, click a Pokémon to show it immediately
+       on the device. The buttons use the local debug firmware over Web Serial —
+       no terminal or <code>screen</code> command is needed.</p>
+    <div class="test-grid" id="test-controls">
+      <button data-test-command="SPEC 152" disabled>#152 Chikorita</button>
+      <button data-test-command="SPEC 153" disabled>#153 Bayleef</button>
+      <button data-test-command="SPEC 154" disabled>#154 Meganium</button>
+      <button data-test-command="SPEC 155" disabled>#155 Cyndaquil</button>
+      <button data-test-command="SPEC 156" disabled>#156 Quilava</button>
+      <button data-test-command="SPEC 157" disabled>#157 Typhlosion</button>
+      <button data-test-command="SPEC 158" disabled>#158 Totodile</button>
+      <button data-test-command="SPEC 159" disabled>#159 Croconaw</button>
+      <button data-test-command="SPEC 160" disabled>#160 Feraligatr</button>
+    </div>
+    <div class="row test-actions">
+      <button data-test-command="SHINY" disabled>✨ Toggle shiny</button>
+      <button id="mark-gen2" disabled>✅ Mark all Gen 2 caught</button>
+      <button data-test-command="GAL" disabled>📖 Toggle gallery</button>
+      <button data-test-command="BATTLE 160" disabled>⚔️ Battle #160</button>
+    </div>
+    <pre id="test-log"></pre>
+  </div>
+
   <h2>How to play</h2>
   <p>Care for your egg until it hatches, feed it, play, train it and complete them
      all. Tap the creature to pet it; swipe to open the Pokédex (sideways), the
@@ -123,6 +151,12 @@ if (!supported) { document.getElementById('unsupported').style.display='block';
   document.getElementById('connect').disabled = true; }
 
 let port, reader, writer, lineBuf = '';
+let serialBusy = false;
+
+const testLog = (m) => { const el = document.getElementById('test-log'); el.style.display='block';
+  el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
+const testButtons = [...document.querySelectorAll('[data-test-command]'), document.getElementById('mark-gen2')];
+const setTestButtons = (enabled) => testButtons.forEach((b) => { if (b) b.disabled = !enabled; });
 
 async function readLine(timeoutMs = 6000) {
   const deadline = Date.now() + timeoutMs;
@@ -160,6 +194,39 @@ async function sendOne(name, data) {
   return await waitFor('DONE', 30000);
 }
 
+async function sendCommand(command) {
+  await writer.write(enc.encode(command + '\n'));
+  const lines = [];
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    const line = await readLine(Math.max(250, deadline - Date.now()));
+    if (line === null) throw new Error('No response from board');
+    if (line === 'DONE') return lines;
+    if (line === 'ERR') throw new Error('Board returned ERR');
+    if (line) lines.push(line);
+  }
+  throw new Error('Command timed out');
+}
+
+async function sendTestCommands(commands) {
+  if (!writer) { testLog('Connect the board first.'); return; }
+  if (serialBusy) { testLog('Please wait for the current transfer.'); return; }
+  serialBusy = true;
+  setTestButtons(false);
+  try {
+    for (const command of commands) {
+      testLog('> ' + command);
+      const lines = await sendCommand(command);
+      for (const line of lines) testLog('  ' + line);
+    }
+  } catch (e) {
+    testLog('Error: ' + e.message);
+  } finally {
+    serialBusy = false;
+    setTestButtons(Boolean(writer));
+  }
+}
+
 // splits the sprites.pak bundle (TPAK) into its individual files
 function parsePak(buf) {
   const dv = new DataView(buf), td = new TextDecoder();
@@ -178,16 +245,30 @@ function parsePak(buf) {
 }
 
 async function sendAll(items) {
+  if (serialBusy) { log('Please wait for the current transfer.'); return; }
+  serialBusy = true;
+  setTestButtons(false);
   const bar = document.getElementById('bar'); bar.style.display = 'block';
   const fill = bar.firstElementChild;
-  let done = 0, fail = 0;
-  for (const it of items) {
-    if (!await sendOne(it.name, it.data)) { log('   failed ' + it.name); fail++; }
-    done++;
-    fill.style.width = (done / items.length * 100) + '%';
+  try {
+    let done = 0, fail = 0;
+    for (const it of items) {
+      if (!await sendOne(it.name, it.data)) { log('   failed ' + it.name); fail++; }
+      done++;
+      fill.style.width = (done / items.length * 100) + '%';
+    }
+    log(`Done (${done - fail}/${items.length}). Restart the board (PWR button).`);
+  } finally {
+    serialBusy = false;
+    setTestButtons(Boolean(writer));
   }
-  log(`Done (${done - fail}/${items.length}). Restart the board (PWR button).`);
 }
+
+document.querySelectorAll('[data-test-command]').forEach((button) => {
+  button.onclick = () => sendTestCommands([button.dataset.testCommand]);
+});
+document.getElementById('mark-gen2').onclick = () => sendTestCommands(
+  [152, 153, 154, 155, 156, 157, 158, 159, 160].map((n) => `CAUGHT ${n}`));
 
 document.getElementById('connect').onclick = async () => {
   try {
@@ -200,6 +281,7 @@ document.getElementById('connect').onclick = async () => {
     document.getElementById('auto').disabled = false;
     document.getElementById('files').disabled = false;
     document.getElementById('connect').disabled = true;
+    setTestButtons(true);
   } catch (e) { log('Could not connect: ' + e.message); }
 };
 

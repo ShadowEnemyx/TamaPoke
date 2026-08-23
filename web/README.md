@@ -18,7 +18,7 @@ same one as `tools/send_sd.py`).
 
 - `index.html` — the page (flashing + sprite loader).
 - `manifest.json` — ESP Web Tools config (points at the split firmware parts).
-- `dev.html` — local-only test page; it is not the public installer.
+- `dev.html` — local-only test page with click-based Gen-2 serial controls; it is not the public installer.
 - `manifest-local.json` — local-only `1.33.0-gen2-watermark-local` manifest with debug
   firmware parts.
 - `firmware/tamapoke-*-*.bin` — preserve-save firmware parts for ESP Web Tools.

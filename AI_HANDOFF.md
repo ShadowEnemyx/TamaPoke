@@ -1,6 +1,6 @@
 # TamaPoke Expanded - AI Handoff
 
-Stand: 2026-08-21
+Stand: 2026-08-22
 
 ## Projekt und Hardware
 
@@ -9,7 +9,8 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 `socquique/TamaPoke` und wird als "Expanded"-Variante gepflegt.
 
 - Firmware-Entry-Point: `TamaPoke.ino`
-- Aktueller lokaler Firmware-Stand: `1.32.0-evo-cta`
+- Oeffentlicher Firmware-Stand: `1.32.1-caught-mark`
+- Lokaler Test-Stand: `1.32.1-local-test` (nur ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -28,13 +29,29 @@ Der Nutzer moechte unfertige lokale Versionen erst auf seiner Hardware testen.
 Lokales Bauen, Testen und ein lokaler Web-Installer sind immer erlaubt und
 erwuenscht.
 
+## Aktueller Arbeitsbaum
+
+Der oeffentliche Installer bleibt auf `1.32.1-caught-mark`. Fuer Hardwaretests
+existieren lokal zusaetzlich `web/dev.html` und `web/manifest-local.json`; diese
+Dateien sind bewusst nicht Teil des oeffentlichen Installationsflusses.
+
+Aktuelle lokale Testguards in `TamaPoke.ino`:
+
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.32.1-local-test`.
+- Die Serial-Befehle `CAUGHT`, `CAUGHT <dex>`, `BATTLE` und `BATTLE <dex>` sind
+  nur in diesem Testbuild aktiv.
+- Diese Testversion darf nicht versehentlich in `web/index.html` oder
+  `web/manifest.json` eingetragen oder auf GitHub gepusht werden.
+
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
 - Branch: `tamapoke-expanded-update`
 - `fork`: `https://github.com/ShadowEnemyx/TamaPoke.git`
 - `origin`: `https://github.com/socquique/TamaPoke.git`
-- Der Branch ist mindestens einen Commit vor dem Fork und hat absichtlich lokale,
-  noch nicht veroeffentlichte Aenderungen.
+- HEAD ist aktuell `850f011` (`Revert the public installer off the caught-test build`).
+- Der Arbeitsbaum enthaelt absichtlich lokale, noch nicht veroeffentlichte
+  Testaenderungen in `TamaPoke.ino` sowie `web/dev.html` und
+  `web/manifest-local.json`.
 - Der Hauptautor hat die grosse Expanded-PR offen gelassen und verlinkt den Fork,
   moechte sie aber wegen Umfang, Branding und Binary-Historie nicht komplett in
   das Basisprojekt mergen. Kleine, spaetere Einzel-PRs waeren moeglich, aber nur
@@ -70,6 +87,9 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
   sind persistent und geben moderate Trainingsbelohnungen.
 - Nach einem Sieg gibt es genau einen optionalen Fangversuch. Bei knapper
   Niederlage kann es eine kleine "respect catch"-Chance geben.
+- Im Kampf zeigt ein kleiner Pokeball rechts neben der Gegner-Namenszeile an,
+  ob das gegnerische Pokemon bereits gefangen wurde. Das Symbol nutzt nur den
+  bestehenden `dexCaught`-Bitmap und aendert keine Save-Struktur.
 
 ### Minigames und Events
 
@@ -91,6 +111,8 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - Belohnung wird beim Start festgelegt und persistiert.
 - Inventar: Trail Snack, Energy Tonic, Care Kit und Train Token. Maximal drei
   jedes Items; Train Token oeffnet die ATK/DEF/SPD-Auswahl.
+- Der Hauptscreen-Chip oeffnet direkt Karte 8 und zeigt Tour-Restzeit,
+  abholbaren Fund oder Inventaranzahl.
 
 ### Einstellungen, Hilfe und Performance
 
@@ -102,6 +124,17 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - Statische Screens nutzen Dirty-Rendering; aktive Spiele/Battle bleiben
   regelmaessig gerendert.
 
+### Bewegung, Tageszeit und Evolution
+
+- `dayphase.h` liefert eine gemeinsame Morgen-/Tag-/Abend-/Nacht-Phase fuer
+  Hintergrund, Wild-Pool und Pflegeverbrauch.
+- Nachts sinkt FOOD im Wachzustand langsamer; Schlaf bleibt unveraendert.
+- QMI8658-Schuetteln gibt begrenzt JOY, der Pedometer zaehlt Schritte auch bei
+  Screen-off. USB-Laden verwirft Schritte, damit Bewegung nicht farmbar ist.
+- Evolution wird nie automatisch ausgefuehrt: Der rote CTA bleibt bei erreichtem
+  Level sichtbar und erinnert bei zu niedrigen Pflegewerten. Form behalten wird
+  auf Level 100 nach einem Spieltag erneut angeboten.
+
 ## Audio
 
 Audio ist vollstaendig synthetisch ueber ES8311/I2S. Es werden keine originalen
@@ -112,17 +145,16 @@ Pokemon-Audiodateien oder ROM-Sounds benutzt.
 - `SOUND_LOW`: grosse Ereignisse und Warnungen.
 - `SOUND_OFF`: stumm.
 
-Der gerade umgesetzte, noch auf Hardware zu pruefende Stand `1.29.5-pet-chirps`
-verbessert Pet-Rufe:
+Die Spezies-Rufe und alle UI-/Battle-/Minigame-Sounds sind synthetisch:
 
 - vier statt drei Toene, laenger und ohne Noise-Wave
 - hoehere Synthese-Lautstaerke
 - bei TON VIEL hat ein Pet-Tap Vorrang vor dem generischen Klick
-- kurzer Pet-Tap-Ruf-Cooldown (220 ms), normal 800 ms
+- Pet-Tap, Galerie-Detail und Wildkampf haben eigene Ruf-/SFX-Pfade
+- Soundmodi bleiben getrennt: VIEL, MITTEL, WENIG, AUS
 
-Wichtig: Der Nutzer hatte den bisherigen Pet-Tap-Sound als "sehr wenig und
-nichts sagend" empfunden. Diese Aenderung muss auf echter Hardware angehoert
-werden. Nicht behaupten, sie sei bereits bestaetigt.
+Die Lautstaerke und Wirkung muessen weiterhin auf echter Hardware beurteilt
+werden; Desktop-Builds koennen den ES8311-/Lautsprecherweg nicht ersetzen.
 
 ## Aktuelle lokale Aenderungen seit der letzten Veroeffentlichung
 
@@ -169,6 +201,13 @@ nicht gepusht:
    - Roter Entwicklungs-Button bleibt, sobald das Level reicht, auch wenn ein
      Balken unter 40 liegt. Tippen erinnert dann an die Balken.
    - "Form behalten" auf Level 100 kommt nach einem Spieltag wieder.
+9. `1.32.1-caught-mark`
+   - Oeffentlicher Installerstand mit Fangmarker im Wildkampf.
+   - Der Marker sitzt neben der Gegner-Namenszeile und zeigt nur bereits
+     gefangene wilde Pokemon.
+10. `1.32.1-local-test`
+   - Lokale Testvariante mit zusaetzlichen Serial-Befehlen fuer Fangmarker und
+     erzwungene Battle-Gegner. Nicht oeffentlich veroeffentlichen.
 
 ## Architektur und wichtige Dateien
 
@@ -189,6 +228,8 @@ nicht gepusht:
 - `tools/build_web.sh`: erzeugt die vier separaten Installer-Binaries.
 - `web/manifest.json` und `web/index.html`: Web-Installer. Die Parts werden
   getrennt geflasht, damit NVS/Save bei Updates erhalten bleibt.
+- `web/dev.html` und `web/manifest-local.json`: lokaler Testinstaller, nicht fuer
+  den oeffentlichen GitHub-Pages-Flow.
 
 ## Testen und lokales Flashen
 
@@ -203,7 +244,7 @@ python3 -m http.server 8000 --directory web
 Danach auf dem Mac Chrome oder Edge oeffnen:
 
 ```text
-http://127.0.0.1:8000/?v=1.32.0-evo-cta
+http://127.0.0.1:8000/?v=1.32.1-caught-mark
 ```
 
 Waveshare per USB verbinden und im Installer **Erase device deaktiviert lassen**.
@@ -211,11 +252,32 @@ Der lokale Server muss waehrend des Flashens weiterlaufen. Der aktuelle
 Web-Installer erwartet diese vier Dateien:
 
 ```text
-web/firmware/tamapoke-1.32.0-evo-cta-bootloader.bin
-web/firmware/tamapoke-1.32.0-evo-cta-partitions.bin
-web/firmware/tamapoke-1.32.0-evo-cta-boot_app0.bin
-web/firmware/tamapoke-1.32.0-evo-cta-app.bin
+web/firmware/tamapoke-1.32.1-caught-mark-bootloader.bin
+web/firmware/tamapoke-1.32.1-caught-mark-partitions.bin
+web/firmware/tamapoke-1.32.1-caught-mark-boot_app0.bin
+web/firmware/tamapoke-1.32.1-caught-mark-app.bin
 ```
+
+### Lokaler Testinstaller
+
+Fuer uncommittete Hardwaretests kann ein separates Testbuild erzeugt werden:
+
+```bash
+FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
+arduino-cli compile --fqbn "$FQBN" \
+  --build-property build.extra_flags=-DTAMAPOKE_LOCAL_TEST \
+  --build-path /tmp/tamapoke-local-build --export-binaries .
+```
+
+Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
+genannten `1.32.1-local-test`-Namen liegen. Danach:
+
+```bash
+python3 -m http.server 8000 --directory web
+```
+
+Im Browser `http://127.0.0.1:8000/dev.html` oeffnen. Auch beim lokalen
+Testupdate `Erase device` deaktiviert lassen.
 
 ## Verifikation vor einer eventuellen Veroeffentlichung
 
@@ -225,10 +287,12 @@ web/firmware/tamapoke-1.32.0-evo-cta-app.bin
 4. Hardware-Smoke-Test ohne Erase:
    - Save/Pet bleibt erhalten.
    - Hauptscreen-Pet mehrfach antippen: Ruf muss klar hoerbar sein.
-   - Profil oeffnen: keine gruennen Rahmenkreise ueber dem Portrait; Portrait
+   - Profil oeffnen: sechs sichtbare Ecken-/Akzentrahmen durchschalten; Portrait
      antippen pruefen.
    - Battle, Play-Menue, Memo, Expedition, Schlaf, PWR-Wakeup und Settings
      kurz pruefen.
+   - Im lokalen Testbuild `CAUGHT <dex>` und `BATTLE <dex>` pruefen; im
+     oeffentlichen Build sind diese Debug-Befehle absichtlich nicht vorhanden.
 5. Erst nach ausdruecklicher Nutzerfreigabe committen/pushen/veroeffentlichen.
 
 ## Offene Themen und sichere naechste Schritte
@@ -236,15 +300,14 @@ web/firmware/tamapoke-1.32.0-evo-cta-app.bin
 - `1.31.0-day-imu` auf Hardware pruefen: Serial `IMU` (Ruhe ~1 g), Schuetteln,
   Schritte ohne USB, USB darf keine JOY geben, Nacht-FOOD, Morgen-Overlay,
   Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.
-- Als Erstes die `1.29.5` Pet-Rufe auf dem echten Waveshare pruefen. Falls sie
-  weiter zu leise sind, sollte zuerst die ES8311-DAC-/Amp-Lautstaerke und dann
-  die Profilparameter angepasst werden, nicht blind weitere Sounds addieren.
+- Die synthetischen Pet-Rufe und die sechs Profilrahmen auf dem echten Waveshare
+  visuell/akustisch pruefen.
 - Nach neuem Nutzerfeedback erneut gezielte Bug-Hunts machen. Bei Reviews immer
   zuerst echte Fehler, Save-Risiken und Touch-Hitboxen pruefen.
 - Alle UI-Aenderungen auf dem runden Screen auf abgeschnittenen Text und
   Fehleingaben pruefen.
-- Keine neue grosse Battle-Funktion ohne Nutzerentscheidung: Der Nutzer wollte
-  zuletzt eher Stabilitaet, gute Bedienung und abwechslungsreiche Alltagsfunktionen.
+- Keine neue grosse Battle-Funktion ohne Nutzerentscheidung; zuerst Marker,
+  Rahmen, Touch-Hitboxen und Save-Sicherheit auf Hardware bestaetigen.
 - Historische Firmware-Binaries nicht erneut massenhaft in Git aufnehmen. Nur
   die vier aktuellen Installer-Parts einer freigegebenen Version gezielt
   veroeffentlichen.

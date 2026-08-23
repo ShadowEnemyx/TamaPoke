@@ -30,7 +30,11 @@
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
+#ifdef TAMAPOKE_LOCAL_TEST
+#define FW_VERSION "1.32.1-local-test"
+#else
 #define FW_VERSION "1.32.1-caught-mark"
+#endif
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
 
@@ -187,6 +191,10 @@ uint8_t currentDayPhase();
 bool mainScreenReadyForShake();
 void maybeOfferMorning(uint32_t now);
 uint32_t pmdActTotalMs(const PmdAct &a);
+#ifdef TAMAPOKE_LOCAL_TEST
+void startBattleWith(int16_t forcedDex, uint8_t forcedLevel);
+void startBattle();
+#endif
 
 // las 9 especies con sprite propio en flash (respaldo sin SD): dex -> indice
 int flashIdxForDex(int16_t dex) {
@@ -730,6 +738,35 @@ void handleSerial() {
       if (pet.isRegistered(i)) Serial.printf(" %d", i);
     Serial.println();
     Serial.println("DONE");
+#ifdef TAMAPOKE_LOCAL_TEST
+  } else if (line == "CAUGHT") {
+    Serial.printf("caught %u/151:", pet.caughtCount());
+    for (int i = 1; i <= 151; i++)
+      if (pet.isCaught(i)) Serial.printf(" %d", i);
+    Serial.println();
+    Serial.println("DONE");
+  } else if (line.startsWith("CAUGHT ")) {
+    int n = line.substring(7).toInt();
+    if (n < 1 || n > DEX_COUNT) n = pet.speciesId;
+    if (n >= 1 && n <= DEX_COUNT) {
+      pet.registerCaught((int16_t)n);
+      Serial.printf("caught #%d %s\n", n, DEX_TBL[n].name);
+    }
+    Serial.println("DONE");
+  } else if (line.startsWith("BATTLE ")) {
+    int n = line.substring(7).toInt();
+    startBattleWith((int16_t)n, pet.level());
+    Serial.printf("battle #%d %s caught=%d\n", battleDex,
+                  (battleDex >= 1 && battleDex <= DEX_COUNT) ? DEX_TBL[battleDex].name : "?",
+                  pet.isCaught(battleDex));
+    Serial.println("DONE");
+  } else if (line == "BATTLE") {
+    startBattle();
+    Serial.printf("battle #%d %s caught=%d\n", battleDex,
+                  (battleDex >= 1 && battleDex <= DEX_COUNT) ? DEX_TBL[battleDex].name : "?",
+                  pet.isCaught(battleDex));
+    Serial.println("DONE");
+#endif
   } else if (line == "SAVEINFO") {
     Serial.printf("fw=%s save=%s createdBoot=%d spec=%d level=%u egg=%d starter=%d age=%lu\n",
                   FW_VERSION, pet.saveLoadedFromNvs ? "loaded" : "created",

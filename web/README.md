@@ -18,6 +18,9 @@ same one as `tools/send_sd.py`).
 
 - `index.html` — the page (flashing + sprite loader).
 - `manifest.json` — ESP Web Tools config (points at the split firmware parts).
+- `dev.html` — local-only test page; it is not the public installer.
+- `manifest-local.json` — local-only `1.32.1-local-test` manifest with debug
+  firmware parts.
 - `firmware/tamapoke-*-*.bin` — preserve-save firmware parts for ESP Web Tools.
 - `sprites.pak` — all the sprites in one bundle (TPAK), so the page sends them in
   one click.
@@ -37,8 +40,15 @@ Web Serial and ESP Web Tools need a **secure context**: `https://` or
 
 ```bash
 cd web && python3 -m http.server 8000
-# open http://localhost:8000 in Chrome/Edge
+# public-like installer: http://localhost:8000/
+# local test installer:   http://localhost:8000/dev.html
 ```
+
+The public page and `manifest.json` currently target `1.32.1-caught-mark`.
+The local page is for uncommitted hardware tests and targets
+`1.32.1-local-test`. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
+serial commands `CAUGHT`, `CAUGHT <dex>`, `BATTLE` and `BATTLE <dex>` for testing
+the caught marker. Do not replace the public manifest with the local one.
 
 ## End-user flow
 
@@ -73,3 +83,4 @@ attribution is allowed); see [`../CREDITS.md`](../CREDITS.md).
 ## Limitations
 
 - Desktop **Chrome/Edge** only (Web Serial isn't in Firefox/Safari).
+- The local test page is intentionally not part of the GitHub Pages public flow.

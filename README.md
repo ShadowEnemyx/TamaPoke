@@ -278,6 +278,12 @@ For local development, `web/index.html` flashes the firmware (ESP Web Tools) and
 pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 (secure context) and open it in **Chrome/Edge**. See [`web/README.md`](web/README.md).
 
+For uncommitted hardware tests there is a separate local page at
+`http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
+`1.32.1-local-test` build with extra serial test commands. Keep this page
+separate from the public `index.html`; do not publish the local manifest or
+local-test binaries to GitHub Pages.
+
 ### Generate and load the sprites yourself
 
 Normal users should use the web installer instead. This is only needed if you are

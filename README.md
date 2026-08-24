@@ -3,16 +3,21 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v1.35.0--step--trail-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v1.35.1--step--trail--local-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/ShadowEnemyx/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/ShadowEnemyx/TamaPoke/stargazers)
+
+> **This is ShadowEnemyx's expanded fork of TamaPoke.** Use only the installer
+> linked in this README. The original upstream installer is a different build
+> and must not be used for this fork; upstream links are kept only as source and
+> attribution credits.
 
 ## Install / Flash
 
 **For normal use, use only the web installer. Do not download anything manually.**
 
-### [Open the TamaPoke web installer](https://shadowenemyx.github.io/TamaPoke/web/)
+### [Open the ShadowEnemyx TamaPoke web installer](https://shadowenemyx.github.io/TamaPoke/web/)
 
 You do **not** need to download the ZIP, release files, Arduino project, firmware
 `.bin` files or `sprites.pak` manually. The web installer flashes the firmware
@@ -32,7 +37,7 @@ Short version:
 Everything else in this repository is only for developers who want to build or
 modify the firmware themselves.
 
-A gen-1-Pokémon-inspired tamagotchi for the
+A classic-Pokémon-inspired tamagotchi for the
 **Waveshare ESP32-S3-Touch-AMOLED-1.75** (round 466×466 AMOLED, CO5300 driver
 over QSPI, CST9217 touch over I2C). Raise any of the 251, evolve it, train it
 and complete them all (shinies included).
@@ -41,11 +46,12 @@ and complete them all (shinies included).
 > PMD SpriteCollab (CC BY-NC, Pokémon © Nintendo/Game Freak), and the 3D case is
 > CC BY-NC-SA. See **[License](#license)** and **Credits**.
 
-🔴 **3D-printed Pokéball case + print profiles → [on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)** · install TamaPoke here → **[web installer](https://shadowenemyx.github.io/TamaPoke/web/)**
+🔴 **3D-printed Pokéball case source/remix credit → [MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)** · install this fork here → **[ShadowEnemyx web installer](https://shadowenemyx.github.io/TamaPoke/web/)**
 
 ## Status
 
-Running on hardware. Implemented: all 251 + shinies animated from microSD, full
+Running on hardware. The final local branch is `local/full-gen2`; the tested
+firmware is `1.35.1-step-trail-local`. Implemented: all 251 + shinies animated from microSD, full
 life cycle (egg by rarity → evolution → farewell/release/runaway, each gated
 behind a decision dialog), bred-Pokédex with gallery, battle stats (genes +
 training), retention hooks (streak / bond / medals / name), biome + real-time
@@ -63,7 +69,8 @@ background tours and a small persistent item inventory.
 > original Pokemon game cries, are not sampled or ROM-derived, and no Pokemon
 > audio assets are distributed with this project.
 
-Pending: longer hardware soak testing and polish. See **Roadmap**.
+The final local hardware path is complete. Optional future work is limited to
+longer soak tests and balance tuning; it is not required for normal use.
 
 ## Game manual (the actual numbers)
 
@@ -203,7 +210,7 @@ After any ending, a **new egg** appears.
   localized Pokémon names in all supported languages.
 
 ### Battle stats
-ATK / DEF / SPD = real **Gen-1 base** × genes + level + training (STRENGTH ← bag,
+ATK / DEF / SPD = real **Pokémon base stats** × genes + level + training (STRENGTH ← bag,
 SPEED ← minigames, DEFENSE ← memo/good care). Wild battles can be started from
 the Battle card, and rare optional wild prompts can appear on the main screen.
 Battles are turn-based with quick/heavy attacks, dodge/counter and limited rest.
@@ -287,6 +294,10 @@ For local hardware tests there is a separate page at
 separate from the public `index.html`; do not publish the local manifest or
 local-test binaries to GitHub Pages.
 
+This local page is the final expanded hardware-test path for this fork. It is
+intentionally separate from the hosted public installer until you explicitly
+publish that build.
+
 ### Generate and load the sprites yourself
 
 Normal users should use the web installer instead. This is only needed if you are
@@ -335,8 +346,9 @@ If one bottoms out it counts as a *slip-up*.
 - Tap the creature = pet it (+happiness, bond; an original species chirp in SND ALL).
 - Horizontal swipe = open the **Pokédex / gallery**.
 - Vertical swipe up = open the **card view** (Profile / Personality / Daily /
-  Box / Battle / Medals / Progress / Expedition; swipe between them; tap the name on Profile to
-  rename; on Battle you can start wild battles or open the training bag).
+  Box / Battle / Medals / Progress / Expedition / Steps-Trail; swipe between
+  them; tap the name on Profile to rename; on Battle you can start wild battles
+  or open the training bag).
   The Box card can page through caught Pokémon and cycle sorting by Dex, type,
   or raised status.
 - Swipe down = **set the clock** and pick the **language**, sound level and
@@ -431,16 +443,17 @@ thumbnails (`SdThumbs`). `SdMon` (TPK1) remains as a dormant legacy fallback onl
 `tools/dex_data.py` is the **single source**: name, slug, type (accent colour +
 background biome), evolution line with gen-1 levels, rarities and starters.
 `tools/dex_stats.py` has the real base stats (from PokéAPI). `gen_dex.py` emits
-`dex.h` (the `DEX_TBL[152]` table). The pet's identity is its Pokédex number
+`dex.h` (the `DEX_TBL[DEX_COUNT + 1]` table). The pet's identity is its Pokédex number
 (persisted in NVS).
 
 - **Evolution** gen-1 style (levels 16/36/…; stones ≈30, trade ≈40; Eevee
   branches to whichever evolution you're missing). Each slip-up delays it 1
-  level; it won't evolve with any stat < 40 or while asleep.
+  level; it evolves only when at least 3 of 4 care values are strictly above 40
+  and never while asleep.
 
 ## Battle stats and training
 
-Each creature has ATK/DEF/SPD = real gen-1 base × **genes** (90–110 %, rolled at
+Each creature has ATK/DEF/SPD = real Pokémon base × **genes** (90–110 %, rolled at
 hatch) + level + **training**:
 - SPEED ← the minigame
 - DEFENSE ← sustained good care (12 h with no slip-ups)
@@ -517,9 +530,13 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 `SHINY` · `NICK <x>` · `BYE` / `RUN` (farewell / runaway) · `ABANDON` (force the
 runaway-ready state) · `WIPE` (factory reset → new game) · `BEEP` (audio test) ·
 `REG` (Pokédex) · `EGGS` (simulate 20 eggs) · `GAL` (gallery) · `CAREDAY` ·
-`TIME <epoch>` / `RTCSET <epoch>` · `IMU` · `SHAKE` · `WALK <n>` · `STEPS` · `HEALTH` (uptime + heap for the soak test) ·
-`LS` / `PUT` (SD files). The local `TAMAPOKE_LOCAL_TEST` build additionally
-offers `TESTMON <dex> <shiny>` and `TESTEVO <source> <target>` through `web/dev.html`.
+`TIME <epoch>` / `RTCSET <epoch>` · `IMU` · `SHAKE` · `WALK <n>` · `STEPS` ·
+`HEALTH` (uptime + heap for the soak test) · `LS` / `PUT` (SD files).
+
+The local `TAMAPOKE_LOCAL_TEST` build additionally offers `CAUGHT`,
+`CAUGHT <dex>`, `BATTLE`, `BATTLE <dex> [shiny]`, `TESTMON <dex> <shiny>` and
+`TESTEVO <source> <target>`. The localhost page exposes these safe test and
+diagnostic buttons without a terminal.
 
 To test fast: lower `PET_TICK_MS`, `MINUTES_PER_LEVEL` and `FAREWELL_AGE_MIN` in `pet.h`.
 
@@ -535,10 +552,10 @@ cd tests
 make test
 ```
 
-## Roadmap
+## Optional follow-up
 
-- **Soak test** 24–48 h (instrumentation ready: `HEALTH` command/heartbeat).
-- **Polish** daily goals, personality reactions and long-term progression.
+- Longer 24–48 h soak test using the `HEALTH` command/heartbeat.
+- Balance tuning after more real-world walking and long-term progression data.
 
 *(Done: 3D-printed case [published on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi); repo public with the browser installer + one-click sprite bundle.)*
 

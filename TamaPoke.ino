@@ -3124,7 +3124,7 @@ void drawTypeChip(int x, int y, uint8_t type) {
   gfx->print(label);
 }
 
-void drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
+int drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
   int w1 = typeChipWidth(d.type1);
   int w2 = d.type2 == TYPE_NONE ? 0 : typeChipWidth(d.type2);
   int total = w1 + (w2 ? 4 + w2 : 0);
@@ -3132,6 +3132,7 @@ void drawTypeChips(int x, int y, const DexEntry &d, bool alignRight) {
   drawTypeChip(sx, y, d.type1);
   if (d.type2 != TYPE_NONE) drawTypeChip(sx + w1 + 4, y, d.type2);
   gfx->setTextSize(2);
+  return sx;
 }
 
 void drawWildPrompt() {
@@ -3225,7 +3226,7 @@ void renderBattle() {
   drawBattleHpBar(28, 110, playerCur, playerMax, UI_BAR_OK);
   drawBattleHpBar(288, 110, enemyCur, enemyMax, UI_BAR_BAD);
   drawTypeChips(28, 130, mine, false);
-  drawTypeChips(438, 130, wild, true);
+  int wildChipLeft = drawTypeChips(438, 130, wild, true);
 
   if (!battleResolved) {
     gfx->fillRoundRect(188, 102, 90, 32, 9, UI_TRACK);
@@ -3234,10 +3235,10 @@ void renderBattle() {
     gfx->setCursor(188 + (90 - (int)strlen(T(S_RUN_BATTLE)) * 12) / 2, 111);
     gfx->print(T(S_RUN_BATTLE));
   }
-  // Rechts neben dem Gegnernamen, ueber dem HP-Balken — nicht in der
-  // Luecke neben FLIEHEN, sonst liegt der Marker unter dem Button.
+  // Links neben den Typ-Chips des Gegners (Gift/Flug usw.). Oben rechts
+  // neben dem Namen liegt der Marker ausserhalb des runden Displays.
   if (pet.isCaught(battleDex))
-    drawCaughtBattleMarker(410, 68);
+    drawCaughtBattleMarker(wildChipLeft - 36, 122);
 
   if (pmd.loaded) drawPmdAct(PMD_IDLE, 142, 286, millis(), true, false, 3);
   else {
@@ -3781,14 +3782,8 @@ uint16_t collectionFrameColor(uint8_t frame) {
 }
 
 void drawCaughtBattleMarker(int x, int y) {
-  // Kleiner Pokeball an der Gegner-Namenszeile (rechte Haelfte). Ohne Text,
-  // damit lange lokalisierte Namen den Marker nicht verdraengen.
-  gfx->fillCircle(x, y, 9, UI_BAR_BAD);
-  gfx->fillRect(x - 8, y, 16, 8, UI_WHITE);
-  gfx->drawCircle(x, y, 9, UI_INK);
-  gfx->drawLine(x - 8, y, x + 8, y, UI_INK);
-  gfx->fillCircle(x, y, 3, UI_INK);
-  gfx->fillCircle(x, y, 1, UI_WHITE);
+  // Gleicher 16er-Pokeball wie im Minispiel, 2x neben den Typ-Chips (32 px).
+  drawMap(SPR_ICON_PLAY, 16, x, y, 2, false);
 }
 
 static void drawFrameCorner(int x, int y, int sx, int sy, uint16_t color, uint8_t len) {

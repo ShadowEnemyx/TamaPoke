@@ -75,7 +75,10 @@ bool imuBegin() {
     return false;
   }
 
-  qmi.configPedometer(50, 200, 100, 200, 20, 10, 0, 4);
+  // Vier zusammenhaengende Schritte reichen fuer den Einstieg; der Sensor
+  // meldet jeden validierten Schritt sofort statt in Viererpaketen. So werden
+  // kurze Gehstrecken im Haus sichtbar, ohne beliebiges Schuetteln zu zaehlen.
+  qmi.configPedometer(50, 200, 100, 200, 20, 4, 0, 1);
   if (qmi.enablePedometer()) {
     lastPed = qmi.getPedometerCounter();
     pedInited = true;
@@ -112,10 +115,13 @@ void imuPoll(uint32_t nowMs, uint16_t intervalMs) {
   // Ruhe ~1 g. Ein normaler Ball-Schuettler liegt oft nur bei 1.4-1.8 g;
   // Gyro faengt Drehen im Gehaeuse besser als der Accel allein.
   bool hot = lastMag >= 1.45f || lastGyro >= 80.0f;
-  if (deadlineActive(nowMs, bootIgnoreUntil) || deadlineActive(nowMs, shakeIgnoreUntil)) {
+  if (deadlineActive(nowMs, bootIgnoreUntil)) {
     return;
   }
-  if (hot) {
+  // Die Schuettel-Entprellung darf nur das Shake-Event blockieren, nicht das
+  // Pedometer. Sonst konnte Gehen bei eingeschaltetem Display alle 40/80 ms
+  // die Schritt-Abfrage ueberspringen.
+  if (hot && !deadlineActive(nowMs, shakeIgnoreUntil)) {
     shakePending = true;
     shakeIgnoreUntil = nowMs + 280;
   }

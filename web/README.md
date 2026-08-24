@@ -19,7 +19,7 @@ same one as `tools/send_sd.py`).
 - `index.html` — the page (flashing + sprite loader).
 - `manifest.json` — ESP Web Tools config (points at the split firmware parts).
 - `dev.html` — local-only test page with click-based Gen-2 serial controls; it is not the public installer.
-- `manifest-local.json` — local-only `1.35.0-step-trail-local` manifest with debug
+- `manifest-local.json` — local-only `1.35.1-step-trail-local` manifest with debug
   firmware parts.
 - `firmware/tamapoke-*-*.bin` — preserve-save firmware parts for ESP Web Tools.
 - `sprites.pak` — all 251 species in one bundle (TPAK), so the page sends them in
@@ -48,9 +48,11 @@ cd web && python3 -m http.server 8000
 
 The public page and `manifest.json` currently target `1.32.1-caught-mark`.
 The local page is for hardware tests and targets
-`1.35.0-step-trail-local`. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
-click-driven commands `TESTMON`, `TESTEVO`, `CAUGHT`, `BATTLE`, `WALK` and `STEPS`
-for testing the full #152–251 Gen-2 range and the persistent step/trail system.
+`1.35.1-step-trail-local`. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
+click-driven commands `TESTMON`, `TESTEVO`, `CAUGHT`, `BATTLE`, `WALK`, `STEPS`,
+`IMU` and `STATS` for testing the full #152–251 Gen-2 range and the persistent
+step/trail system. `IMU` verifies the sensor and raw pedometer counter; `STATS`
+also shows whether USB is still detected.
 Do not replace the public manifest with the local one.
 
 ## End-user flow

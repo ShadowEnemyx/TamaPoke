@@ -31,7 +31,7 @@
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
 #ifdef TAMAPOKE_LOCAL_TEST
-#define FW_VERSION "1.35.0-step-trail-local"
+#define FW_VERSION "1.35.1-step-trail-local"
 #else
 #define FW_VERSION "1.33.0-gen2-watermark"
 #endif
@@ -866,9 +866,10 @@ void handleSerial() {
                   pet.joy, pet.bond);
     Serial.println("DONE");
   } else if (line == "STEPS") {
-    Serial.printf("steps today=%lu total=%lu rank=%u shiny=%u/4096 catch+%u\n",
+    Serial.printf("steps today=%lu total=%lu rank=%u shiny=%u/4096 catch+%u usb=%d imu=%d\n",
                   (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
-                  pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus());
+                  pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus(),
+                  usbPresent(), imuOk());
     Serial.println("DONE");
   }
 }

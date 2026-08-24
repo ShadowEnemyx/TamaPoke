@@ -283,7 +283,7 @@ pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 
 For local hardware tests there is a separate page at
 `http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
-`1.35.0-step-trail-local` build with extra serial test commands. Keep this page
+`1.35.1-step-trail-local` build with extra serial test commands. Keep this page
 separate from the public `index.html`; do not publish the local manifest or
 local-test binaries to GitHub Pages.
 
@@ -357,7 +357,7 @@ wake a sleeping pet).
 **Motion (QMI8658):** shake the Pokeball on the main screen to play (small JOY,
 cooldown, daily cap). Walking with the screen off still counts steps and slowly
 raises JOY/BOND; the persistent **today + total** counters are shown in the
-top-right HUD and on the Steps card. Daily trail rewards unlock at **500 / 2,000 /
+top-left HUD and on the Steps card. Daily trail rewards unlock at **500 / 2,000 /
 5,000** steps. Wild Shiny odds improve with the day's steps (base 1/512,
 bounded near 1/128) and the catch chance gets a small capped bonus. USB charging
 ignores steps so a desk bump does not farm stats.

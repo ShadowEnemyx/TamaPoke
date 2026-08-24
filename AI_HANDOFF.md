@@ -10,7 +10,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
-- Aktueller lokaler Gen-2/Wasserzeichen-/Schritt-Test: `1.35.1-step-trail-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
+- Aktueller lokaler Gen-2/Wasserzeichen-/Schritt-Test: `1.35.3-soft-step-local` (ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -31,17 +31,20 @@ erwuenscht.
 
 ## Aktueller Arbeitsbaum
 
-Der oeffentliche Installer bleibt auf dem Ausgangsstand. Fuer Hardwaretests
-existieren lokal zusaetzlich `web/dev.html` und `web/manifest-local.json`; diese
-Dateien sind bewusst nicht Teil des oeffentlichen Installationsflusses.
+Der oeffentliche Installer zeigt auf den stabilen `1.35.3-soft-step`-Build.
+Fuer Hardwaretests existieren zusaetzlich `web/dev.html` und
+`web/manifest-local.json`; diese Debug-Dateien sind bewusst nicht Teil des
+oeffentlichen Installationsflusses.
 
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
-- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.35.1-step-trail-local`.
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.35.3-soft-step-local`.
 - Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
   und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
-  `web/manifest.json` eingetragen oder auf GitHub gepusht werden.
+  `web/manifest.json` eingetragen oder als öffentlicher GitHub-Pages-Installer
+  aktiviert werden; sie liegt für Hardwaretests in `web/dev.html` und
+  `web/manifest-local.json`.
 
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
@@ -51,13 +54,14 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - Der Ausgangspunkt ist lokal als `3b24ea8` (`chore: save local baseline before gen2 watermark`)
   und zusaetzlich mit dem Tag `local-baseline-before-gen2-watermark` gesichert.
 - Der lokale Featurestand ist als `feat: add gen2 starters and local watermark` gesichert;
-  es wurde nichts gepusht.
+  der finale Stand wurde nach ausdruecklicher Nutzerfreigabe auf `fork/main`
+  veroeffentlicht.
 - Der aktuell getestete, funktionierende lokale Stand ist als Tag
   `local-full-gen2-final` markiert; der Branch bleibt `local/full-gen2`.
-- Der Arbeitsbaum enthaelt lokale, noch nicht veroeffentlichte Gen-2-,
-  Wasserzeichen-, Lokalisierungs- und Sprite-Aenderungen. `web/index.html` und
-  `web/manifest.json` bleiben auf dem oeffentlichen Ausgangsstand; nur
-  `web/dev.html` und `web/manifest-local.json` zeigen auf den lokalen Build.
+- Der Arbeitsbaum enthaelt den veroeffentlichten Gen-2-, Wasserzeichen-,
+  Lokalisierungs-, Sprite- und Schrittstand. `web/index.html` und
+  `web/manifest.json` zeigen auf den oeffentlichen Build; nur `web/dev.html`
+  und `web/manifest-local.json` aktivieren die Debug-Befehle.
 - Der Hauptautor hat die grosse Expanded-PR offen gelassen und verlinkt den Fork,
   moechte sie aber wegen Umfang, Branding und Binary-Historie nicht komplett in
   das Basisprojekt mergen. Kleine, spaetere Einzel-PRs waeren moeglich, aber nur
@@ -137,9 +141,9 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - Nachts sinkt FOOD im Wachzustand langsamer; Schlaf bleibt unveraendert.
 - QMI8658-Schuetteln gibt begrenzt JOY. Der Pedometer zaehlt Schritte auch bei
   Screen-off; Tages-/Gesamtzaehler, Trail-Belohnungen sowie Wild-Shiny-/Fangbonus
-  bleiben in NVS. USB-Laden verwirft Schritte, damit Bewegung nicht farmbar ist.
-  Die Shake-Entprellung blockiert die Pedometer-Abfrage nicht; vier zusammen-
-  haengende Schritte starten die Erkennung, danach wird jeder Schritt gemeldet.
+  bleiben in NVS. Der aktuelle Softwarezaehler nutzt gefilterte positive
+  Beschleunigungsimpulse und zaehlt auch bei USB, sobald zwei rhythmische
+  Schritte bestaetigt sind. Der rohe QMI-Pedometer bleibt als Diagnose sichtbar.
 - Evolution wird nie automatisch ausgefuehrt: Der rote CTA bleibt bei erreichtem
   Level sichtbar und erinnert bei zu niedrigen Pflegewerten. Form behalten wird
   auf Level 100 nach einem Spieltag erneut angeboten.
@@ -167,8 +171,8 @@ werden; Desktop-Builds koennen den ES8311-/Lautsprecherweg nicht ersetzen.
 
 ## Aktuelle lokale Aenderungen seit der letzten Veroeffentlichung
 
-Die folgenden Aenderungen sind lokal implementiert, getestet und gebaut, aber
-nicht gepusht:
+Die folgenden Aenderungen sind implementiert, getestet, gebaut und nach
+Nutzerfreigabe auf `fork/main` veroeffentlicht:
 
 1. `1.29.3-reliability`
    - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
@@ -203,7 +207,8 @@ nicht gepusht:
    - Nacht-Idle laeuft seltener. Ein Morgen-Overlay einmal pro Kalendertag,
      ohne Auto-Wecken.
    - QMI8658: Schuetteln gibt JOY auf dem Hauptscreen (Cooldown 25 s, 8/Tag).
-     Schritte auch bei Screen-off; USB verwirft Steps. Serial: `IMU`, `SHAKE`,
+     Schritte auch bei Screen-off; der damalige Build verwarf USB-Steps.
+     Aktuell zaehlt `1.35.3-soft-step-local` auch bei USB. Serial: `IMU`, `SHAKE`,
      `WALK n`, `STEPS`, `STATS`. Die lokale Testseite bietet zusaetzlich klickbare
      `IMU`-/`STATS`-Diagnosebuttons; `STATS` zeigt auch `usb=0/1`.
 7. `1.31.1-shake-fix`
@@ -228,13 +233,14 @@ nicht gepusht:
      gepackt; `sprites-gen2-update.pak` ist ein inkrementelles Update.
    - `web/dev.html` bietet Auswahl und Testbuttons fuer alle 251 Arten ohne
      Terminal; die Firmware-Befehle sind nur im lokalen Testbuild aktiv.
-12. `1.35.1-step-trail-local`
+12. `1.35.3-soft-step-local`
    - Persistenter Tages-/Gesamt-Schrittzaehler mit 500/2.000/5.000-Trailbelohnungen
      und Trail-Rang-Meilensteinen.
    - Tagesschritte verbessern Wild-Shiny-Chance und Fangchance; Shiny-Wildkaempfe
      werden angezeigt und in der Shiny-Dexregistrierung gespeichert.
-   - IMU-Pedometer fuer kurze Gehstrecken responsiver gemacht; USB-/Sensorstatus
-     ist ueber `STATS`/`IMU` pruefbar.
+   - Der QMI-Hardwarezaehler bleibt zur Diagnose sichtbar; Schritte werden aus
+     gefilterten Beschleunigungsimpulsen erkannt. USB blockiert das Zaehlen nicht
+     mehr; Roh-, Software- und USB-Status sind ueber `STATS`/`IMU` pruefbar.
 
 ## Architektur und wichtige Dateien
 
@@ -271,7 +277,7 @@ python3 -m http.server 8000 --directory web
 Danach auf dem Mac Chrome oder Edge oeffnen:
 
 ```text
-http://127.0.0.1:8000/?v=1.32.1-caught-mark
+http://127.0.0.1:8000/?v=1.35.3-soft-step
 ```
 
 Waveshare per USB verbinden und im Installer **Erase device deaktiviert lassen**.
@@ -279,10 +285,10 @@ Der lokale Server muss waehrend des Flashens weiterlaufen. Der aktuelle
 Web-Installer erwartet diese vier Dateien:
 
 ```text
-web/firmware/tamapoke-1.32.1-caught-mark-bootloader.bin
-web/firmware/tamapoke-1.32.1-caught-mark-partitions.bin
-web/firmware/tamapoke-1.32.1-caught-mark-boot_app0.bin
-web/firmware/tamapoke-1.32.1-caught-mark-app.bin
+web/firmware/tamapoke-1.35.3-soft-step-bootloader.bin
+web/firmware/tamapoke-1.35.3-soft-step-partitions.bin
+web/firmware/tamapoke-1.35.3-soft-step-boot_app0.bin
+web/firmware/tamapoke-1.35.3-soft-step-app.bin
 ```
 
 ### Lokaler Testinstaller
@@ -297,8 +303,8 @@ arduino-cli compile --fqbn "$FQBN" \
 ```
 
 Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
-genannten `1.35.1-step-trail-local`-Namen liegen. Die lokalen Parts sind
-Build-Artefakte und bleiben bewusst von Git ignoriert. Danach:
+genannten `1.35.3-soft-step-local`-Namen liegen. Die Browserinstaller-Parts
+werden fuer reproduzierbare lokale und oeffentliche Tests versioniert. Danach:
 
 ```bash
 python3 -m http.server 8000 --directory web
@@ -325,8 +331,8 @@ Testupdate `Erase device` deaktiviert lassen.
 
 ## Offene Themen und sichere naechste Schritte
 
-- `1.35.1-step-trail-local` auf Hardware pruefen: Serial `IMU`, `STEPS`,
-  `WALK n`, Schritte ohne USB, USB darf keine Schritte farmen, Trail-Belohnungen,
+- `1.35.3-soft-step-local` auf weiterer Hardware pruefen: Serial `IMU`, `STEPS`,
+  `WALK n`, Software-Schritte bei Screen-off und USB, Trail-Belohnungen,
   Wild-Shiny-Fang, Nacht-FOOD, Morgen-Overlay,
   Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.
 - Die synthetischen Pet-Rufe und die sechs Profilrahmen auf dem echten Waveshare

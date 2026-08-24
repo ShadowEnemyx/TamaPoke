@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v1.35.1--step--trail--local-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v1.35.3--soft--step-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/ShadowEnemyx/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/ShadowEnemyx/TamaPoke/stargazers)
@@ -50,8 +50,9 @@ and complete them all (shinies included).
 
 ## Status
 
-Running on hardware. The final local branch is `local/full-gen2`; the tested
-firmware is `1.35.1-step-trail-local`. Implemented: all 251 + shinies animated from microSD, full
+Running on hardware. The final branch is `local/full-gen2`; the tested local
+firmware is `1.35.3-soft-step-local` and the public build is `1.35.3-soft-step`.
+Implemented: all 251 + shinies animated from microSD, full
 life cycle (egg by rarity → evolution → farewell/release/runaway, each gated
 behind a decision dialog), bred-Pokédex with gallery, battle stats (genes +
 training), retention hooks (streak / bond / medals / name), biome + real-time
@@ -292,7 +293,9 @@ pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 
 For local hardware tests there is a separate page at
 `http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
-`1.35.1-step-trail-local` build with extra serial test commands. Keep this page
+`1.35.3-soft-step-local` build with extra serial test commands. Its step counter
+uses raw accelerometer data with cadence filtering and counts immediately after
+USB disconnect. Keep this page
 separate from the public `index.html`; do not publish the local manifest or
 local-test binaries to GitHub Pages.
 

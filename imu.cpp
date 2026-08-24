@@ -19,6 +19,11 @@ static float lastGyro = 0;
 static uint32_t lastPed = 0;
 static bool pedInited = false;
 static uint16_t stepBank = 0;
+static uint32_t softPed = 0;
+static float walkGravity = 0;
+static bool walkPeak = false;
+static uint32_t walkLastPeak = 0;
+static uint8_t walkCadence = 0;
 
 bool imuOk() {
   return ok;
@@ -40,12 +45,68 @@ uint32_t imuPedometer() {
   return lastPed;
 }
 
+uint32_t imuSoftwarePedometer() {
+  return softPed;
+}
+
+static void bankSteps(uint16_t count) {
+  uint32_t next = (uint32_t)stepBank + count;
+  stepBank = next > 60000UL ? 60000 : (uint16_t)next;
+  softPed += count;
+}
+
+static void detectSoftwareStep(uint32_t nowMs, float mag) {
+  if (walkGravity <= 0.01f) {
+    walkGravity = mag;
+    return;
+  }
+
+  float signal = mag - walkGravity;
+  float motion = fabsf(signal);
+  // In Ruhe folgt die Basislinie zuegig der Sensorabweichung. Bei Bewegung
+  // bleibt sie traege, damit der Gehimpuls nicht weggefiltert wird.
+  float alpha = motion < 0.08f ? 0.12f : 0.025f;
+  walkGravity += (mag - walkGravity) * alpha;
+  if (deadlineActive(nowMs, bootIgnoreUntil)) return;
+
+  // Nach jedem Impuls muss die Bewegung erst abklingen. Das verhindert, dass
+  // Aufprall und Rueckschwung desselben Schritts doppelt gezaehlt werden.
+  if (walkPeak) {
+    if (signal <= 0.025f) walkPeak = false;
+    return;
+  }
+  // Nur den positiven Aufprall zaehlen. Der anschliessende negative Ausschlag
+  // ist Teil desselben Schritts und darf keinen zweiten Impuls erzeugen.
+  if (signal < 0.085f) return;
+  walkPeak = true;
+
+  uint32_t gap = walkLastPeak ? nowMs - walkLastPeak : 0;
+  if (walkLastPeak && gap < 280UL) return;
+  if (!walkLastPeak || gap > 1400UL) {
+    walkLastPeak = nowMs;
+    walkCadence = 1;
+    return;
+  }
+
+  walkLastPeak = nowMs;
+  if (walkCadence == 1) {
+    // Erst zwei rhythmische Impulse bestaetigen Gehen; dann die beiden ersten
+    // Schritte gemeinsam freigeben. Einzelne Stoesse bleiben wirkungslos.
+    bankSteps(2);
+    walkCadence = 2;
+  } else {
+    bankSteps(1);
+    if (walkCadence < 255) walkCadence++;
+  }
+}
+
 static bool probeAndStart(uint8_t addr) {
   if (!qmi.begin(Wire, addr, IIC_SDA, IIC_SCL)) return false;
-  // Wie das Waveshare-Demo: Accel schnell, dann Gyro. Pedometer danach,
-  // weil dessen Config den Accel kurz abschaltet.
-  qmi.configAccelerometer(SensorQMI8658::ACC_RANGE_4G,
-                          SensorQMI8658::ACC_ODR_125Hz,
+  // Der Hardware-Pedometer ist fuer 2G / 62,5 Hz abgestimmt (wie im offiziellen
+  // SensorLib-Beispiel). Mit 4G / 125 Hz blieben seine Zeit- und
+  // Spitzenschwellen auf echter Hardware praktisch stumm.
+  qmi.configAccelerometer(SensorQMI8658::ACC_RANGE_2G,
+                          SensorQMI8658::ACC_ODR_62_5Hz,
                           SensorQMI8658::LPF_MODE_0);
   qmi.configGyroscope(SensorQMI8658::GYR_RANGE_512DPS,
                       SensorQMI8658::GYR_ODR_112_1Hz,
@@ -65,6 +126,11 @@ bool imuBegin() {
   lastPed = 0;
   pedInited = false;
   stepBank = 0;
+  softPed = 0;
+  walkGravity = 0;
+  walkPeak = false;
+  walkLastPeak = 0;
+  walkCadence = 0;
   shakePending = false;
   lastPoll = 0;
 
@@ -104,8 +170,10 @@ void imuPoll(uint32_t nowMs, uint16_t intervalMs) {
   // sind (steht so in SensorLib). Rohregister lesen reicht fuer Shake.
 
   float x = 0, y = 0, z = 0;
-  if (qmi.getAccelerometer(x, y, z)) {
+  bool accelRead = qmi.getAccelerometer(x, y, z);
+  if (accelRead) {
     lastMag = sqrtf(x * x + y * y + z * z);
+    detectSoftwareStep(nowMs, lastMag);
   }
   float gx = 0, gy = 0, gz = 0;
   if (qmi.getGyroscope(gx, gy, gz)) {
@@ -126,16 +194,10 @@ void imuPoll(uint32_t nowMs, uint16_t intervalMs) {
     shakeIgnoreUntil = nowMs + 280;
   }
 
-  if (!pedInited) return;
-  uint32_t ped = qmi.getPedometerCounter();
-  if (ped != lastPed) {
-    uint32_t delta = ped - lastPed;
-    lastPed = ped;
-    if (delta > 0 && delta <= 80) {
-      uint32_t next = (uint32_t)stepBank + delta;
-      stepBank = next > 60000UL ? 60000 : (uint16_t)next;
-    }
-  }
+  // Der interne Zaehler bleibt als Diagnose sichtbar. Gezaehlt wird bewusst
+  // nur die Software-Erkennung, weil der Hardware-Pedometer auf einigen Boards
+  // trotz erfolgreicher Aktivierung dauerhaft bei null bleibt.
+  if (pedInited) lastPed = qmi.getPedometerCounter();
 }
 
 bool imuShakeEdge() {

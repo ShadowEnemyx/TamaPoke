@@ -31,9 +31,9 @@
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
 #ifdef TAMAPOKE_LOCAL_TEST
-#define FW_VERSION "1.35.1-step-trail-local"
+#define FW_VERSION "1.35.3-soft-step-local"
 #else
-#define FW_VERSION "1.33.0-gen2-watermark"
+#define FW_VERSION "1.35.3-soft-step"
 #endif
 #define HELP_PAGE_COUNT 8
 #define HELP_LINE_COUNT 6
@@ -464,6 +464,9 @@ bool lightSleepAllowed(uint32_t now) {
 uint16_t lightSleepMs(uint32_t now) {
   if (!lightSleepAllowed(now)) return 0;
   uint16_t maxMs = screenOff ? 750 : (dimStage >= 2 ? 300 : 180);
+  // Die Software-Schritterkennung braucht auch bei dunklem Display regelmaessige
+  // Rohwerte. Kurze Light-Sleep-Intervalle erhalten sie ohne Dauer-Rendering.
+  if (imuOk() && maxMs > 70) maxMs = 70;
   uint16_t ri = renderIntervalMs();
   uint32_t sinceRender = now - lastRender;
   if (sinceRender < ri) {
@@ -516,12 +519,15 @@ void loop() {
   maybeOfferMorning(now);
   maybePlayAmbientSound(now);
 
-  uint16_t imuMs = screenOff ? 400 : (dimStage ? 80 : 40);
+  uint16_t imuMs = screenOff ? 70 : (dimStage ? 60 : 40);
   imuPoll(now, imuMs);
   uint32_t stepsBefore = pet.stepsToday;
   uint32_t stepDayBefore = pet.stepDay;
   uint16_t walked = imuTakeSteps();
-  if (!usbPresent()) pet.applyWalk(walked);
+  // Die Erkennung filtert bereits Einzelstoesse und verlangt Geh-Rhythmus.
+  // Deshalb auch direkt nach dem Abziehen von USB zaehlen: Der gecachte
+  // VBUS-Status kann sonst bis zu zehn Sekunden echte Schritte verwerfen.
+  if (walked) pet.applyWalk(walked);
   if ((pet.stepsToday != stepsBefore || pet.stepDay != stepDayBefore) &&
       cardOpen && cardPage == 8) cardDirty = true;
   if (imuShakeEdge() && !screenOff) {
@@ -850,9 +856,10 @@ void handleSerial() {
                   pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus());
     Serial.println("DONE");
   } else if (line == "IMU") {
-    Serial.printf("imu=%d addr=0x%02X mag=%.2f gyro=%.0f ped=%lu phase=%u hour=%d\n",
+    Serial.printf("imu=%d addr=0x%02X mag=%.2f gyro=%.0f rawPed=%lu softPed=%lu phase=%u hour=%d\n",
                   imuOk(), imuAddr(), imuLastMagG(), imuLastGyroDps(),
-                  (unsigned long)imuPedometer(), currentDayPhase(), sceneHour());
+                  (unsigned long)imuPedometer(), (unsigned long)imuSoftwarePedometer(),
+                  currentDayPhase(), sceneHour());
     Serial.println("DONE");
   } else if (line == "SHAKE") {
     bool okShake = pet.applyShake();
@@ -866,10 +873,11 @@ void handleSerial() {
                   pet.joy, pet.bond);
     Serial.println("DONE");
   } else if (line == "STEPS") {
-    Serial.printf("steps today=%lu total=%lu rank=%u shiny=%u/4096 catch+%u usb=%d imu=%d\n",
+    Serial.printf("steps today=%lu total=%lu rank=%u shiny=%u/4096 catch+%u usb=%d imu=%d raw=%lu soft=%lu\n",
                   (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
                   pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus(),
-                  usbPresent(), imuOk());
+                  usbPresent(), imuOk(), (unsigned long)imuPedometer(),
+                  (unsigned long)imuSoftwarePedometer());
     Serial.println("DONE");
   }
 }

@@ -12,3 +12,4 @@ float imuLastMagG();          // letzte |a| in g, 0 wenn unbekannt
 float imuLastGyroDps();       // letzte |gyro| in deg/s
 uint8_t imuAddr();            // 0 wenn nicht gefunden
 uint32_t imuPedometer();      // Rohzaehler des Chips
+uint32_t imuSoftwarePedometer(); // eigener Zaehler aus Beschleunigungswerten

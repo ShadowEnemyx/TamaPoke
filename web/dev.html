@@ -43,7 +43,7 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.35.1-step-trail-local</b> · 24 Aug 2026</p>
+  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.35.3-soft-step-local</b> · 24 Aug 2026</p>
   <p class="sub">A 251-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
@@ -55,10 +55,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.35.1-step-trail-local</b> from 24 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.35.3-soft-step-local</b> from 24 Aug 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest-local.json?v=1.35.1-step-trail-local">
-      <button slot="activate">⚡ Install LOCAL test 1.35.0</button>
+    <esp-web-install-button manifest="manifest-local.json?v=1.35.3-soft-step-local">
+      <button slot="activate">⚡ Install LOCAL test 1.35.3</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -143,7 +143,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest-local.json?v=1.35.1-step-trail-local')
+fetch('manifest-local.json?v=1.35.3-soft-step-local')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;

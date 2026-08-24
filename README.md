@@ -245,6 +245,8 @@ Catch rules:
 ## Hardware
 
 - Board: [ESP32-S3-Touch-AMOLED-1.75](https://www.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.75)
+  — get the **Standard** (no case) or **-G** (GPS, also fits) version; **not the "-B"**
+  (ships with a protective case that won't fit). The separate "1.75**C**" is a different board.
 - Round 466×466 AMOLED, **CO5300** driver (QSPI, 80 MHz)
 - Capacitive touch **CST9217** (I2C, address 0x5A)
 - **AXP2101** (power management + battery + PWR button), **PCF85063** (RTC),

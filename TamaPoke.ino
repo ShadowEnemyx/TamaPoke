@@ -4454,10 +4454,13 @@ static const int EXP_HUD_Y = 106;
 static const int EXP_HUD_W = 112;
 static const int EXP_HUD_H = 34;
 
-static const int STEP_HUD_X = 326;
-static const int STEP_HUD_Y = 14;
+// Der obere Rand des runden Displays ist an den Ecken nicht sichtbar. Der
+// Schritt-Chip sitzt deshalb links ueber dem Namen, innerhalb der Kreisflaeche;
+// rechts bleibt der Expeditions-Hinweis frei.
+static const int STEP_HUD_X = 130;
+static const int STEP_HUD_Y = 24;
 static const int STEP_HUD_W = 126;
-static const int STEP_HUD_H = 26;
+static const int STEP_HUD_H = 22;
 
 bool inStepsHudHit(int16_t x, int16_t y) {
   return x >= STEP_HUD_X && x <= STEP_HUD_X + STEP_HUD_W &&

@@ -10,7 +10,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
-- Aktueller lokaler Gen-2/Wasserzeichen-Test: `1.34.0-gen2-full-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
+- Aktueller lokaler Gen-2/Wasserzeichen-/Schritt-Test: `1.35.0-step-trail-local` (nur ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -37,7 +37,7 @@ Dateien sind bewusst nicht Teil des oeffentlichen Installationsflusses.
 
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
-- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.34.0-gen2-full-local`.
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.35.0-step-trail-local`.
 - Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
   und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
@@ -133,8 +133,9 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - `dayphase.h` liefert eine gemeinsame Morgen-/Tag-/Abend-/Nacht-Phase fuer
   Hintergrund, Wild-Pool und Pflegeverbrauch.
 - Nachts sinkt FOOD im Wachzustand langsamer; Schlaf bleibt unveraendert.
-- QMI8658-Schuetteln gibt begrenzt JOY, der Pedometer zaehlt Schritte auch bei
-  Screen-off. USB-Laden verwirft Schritte, damit Bewegung nicht farmbar ist.
+- QMI8658-Schuetteln gibt begrenzt JOY. Der Pedometer zaehlt Schritte auch bei
+  Screen-off; Tages-/Gesamtzaehler, Trail-Belohnungen sowie Wild-Shiny-/Fangbonus
+  bleiben in NVS. USB-Laden verwirft Schritte, damit Bewegung nicht farmbar ist.
 - Evolution wird nie automatisch ausgefuehrt: Der rote CTA bleibt bei erreichtem
   Level sichtbar und erinnert bei zu niedrigen Pflegewerten. Form behalten wird
   auf Level 100 nach einem Spieltag erneut angeboten.
@@ -198,7 +199,8 @@ nicht gepusht:
    - Nacht-Idle laeuft seltener. Ein Morgen-Overlay einmal pro Kalendertag,
      ohne Auto-Wecken.
    - QMI8658: Schuetteln gibt JOY auf dem Hauptscreen (Cooldown 25 s, 8/Tag).
-     Schritte auch bei Screen-off; USB verwirft Steps. Serial: `IMU`, `SHAKE`, `WALK n`.
+     Schritte auch bei Screen-off; USB verwirft Steps. Serial: `IMU`, `SHAKE`,
+     `WALK n`, `STEPS`.
 7. `1.31.1-shake-fix`
    - Shake-Schwelle gesenkt (~1.45 g oder Gyro), Accel+Gyro, beide I2C-Adressen.
 8. `1.32.0-evo-cta`
@@ -221,6 +223,11 @@ nicht gepusht:
      gepackt; `sprites-gen2-update.pak` ist ein inkrementelles Update.
    - `web/dev.html` bietet Auswahl und Testbuttons fuer alle 251 Arten ohne
      Terminal; die Firmware-Befehle sind nur im lokalen Testbuild aktiv.
+12. `1.35.0-step-trail-local`
+   - Persistenter Tages-/Gesamt-Schrittzaehler mit 500/2.000/5.000-Trailbelohnungen
+     und Trail-Rang-Meilensteinen.
+   - Tagesschritte verbessern Wild-Shiny-Chance und Fangchance; Shiny-Wildkaempfe
+     werden angezeigt und in der Shiny-Dexregistrierung gespeichert.
 
 ## Architektur und wichtige Dateien
 
@@ -283,7 +290,7 @@ arduino-cli compile --fqbn "$FQBN" \
 ```
 
 Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
-genannten `1.34.0-gen2-full-local`-Namen liegen. Die lokalen Parts sind
+genannten `1.35.0-step-trail-local`-Namen liegen. Die lokalen Parts sind
 Build-Artefakte und bleiben bewusst von Git ignoriert. Danach:
 
 ```bash
@@ -311,8 +318,9 @@ Testupdate `Erase device` deaktiviert lassen.
 
 ## Offene Themen und sichere naechste Schritte
 
-- `1.31.0-day-imu` auf Hardware pruefen: Serial `IMU` (Ruhe ~1 g), Schuetteln,
-  Schritte ohne USB, USB darf keine JOY geben, Nacht-FOOD, Morgen-Overlay,
+- `1.35.0-step-trail-local` auf Hardware pruefen: Serial `IMU`, `STEPS`,
+  `WALK n`, Schritte ohne USB, USB darf keine Schritte farmen, Trail-Belohnungen,
+  Wild-Shiny-Fang, Nacht-FOOD, Morgen-Overlay,
   Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.
 - Die synthetischen Pet-Rufe und die sechs Profilrahmen auf dem echten Waveshare
   visuell/akustisch pruefen.

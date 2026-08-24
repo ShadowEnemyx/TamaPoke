@@ -31,7 +31,7 @@
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
 #ifdef TAMAPOKE_LOCAL_TEST
-#define FW_VERSION "1.34.0-gen2-full-local"
+#define FW_VERSION "1.35.0-step-trail-local"
 #else
 #define FW_VERSION "1.33.0-gen2-watermark"
 #endif
@@ -79,8 +79,8 @@ bool cardOpen = false;        // ficha del bicho (deslizar vertical)
 bool kbOpen = false;          // teclado para renombrar al bicho
 char nameBuf[12] = "";
 uint8_t nameLen = 0;
-#define CARD_COUNT 8
-uint8_t cardPage = 0;         // 0 perfil, 1 personalidad, 2 diario, 3 caja, 4 combate, 5 medallas, 6 progreso, 7 expedicion
+#define CARD_COUNT 9
+uint8_t cardPage = 0;         // 0 perfil ... 7 expedicion, 8 pasos/trail
 uint8_t boxPage = 0;
 uint8_t boxSort = 0;          // 0 dex, 1 tipo, 2 criados primero
 bool expeditionTrainChoiceOpen = false;
@@ -175,6 +175,8 @@ uint32_t nextWildEligible = 0;
 uint32_t lastWildCheck = 0;
 int16_t wildPromptDex = 0;
 uint8_t wildPromptLevel = 1;
+bool wildPromptShiny = false;
+bool battleShiny = false;
 
 #define PET_EVENT_COOLDOWN_MS (15UL * 60UL * 1000UL)
 #define PET_EVENT_PROMPT_MS 18000UL
@@ -195,10 +197,8 @@ void maybeOfferMorning(uint32_t now);
 uint32_t pmdActTotalMs(const PmdAct &a);
 bool watermarkNeedsRedraw();
 void flushStampedFrame();
-#ifdef TAMAPOKE_LOCAL_TEST
-void startBattleWith(int16_t forcedDex, uint8_t forcedLevel);
+void startBattleWith(int16_t forcedDex, uint8_t forcedLevel, int8_t forcedShiny = -1);
 void startBattle();
-#endif
 
 // las 9 especies con sprite propio en flash (respaldo sin SD): dex -> indice
 int flashIdxForDex(int16_t dex) {
@@ -518,8 +518,12 @@ void loop() {
 
   uint16_t imuMs = screenOff ? 400 : (dimStage ? 80 : 40);
   imuPoll(now, imuMs);
+  uint32_t stepsBefore = pet.stepsToday;
+  uint32_t stepDayBefore = pet.stepDay;
   uint16_t walked = imuTakeSteps();
   if (!usbPresent()) pet.applyWalk(walked);
+  if ((pet.stepsToday != stepsBefore || pet.stepDay != stepDayBefore) &&
+      cardOpen && cardPage == 8) cardDirty = true;
   if (imuShakeEdge() && !screenOff) {
     if (pet.isEgg()) {
       eggWiggleUntil = now + 450;
@@ -797,11 +801,14 @@ void handleSerial() {
     }
     Serial.println("DONE");
   } else if (line.startsWith("BATTLE ")) {
-    int n = line.substring(7).toInt();
-    startBattleWith((int16_t)n, pet.level());
-    Serial.printf("battle #%d %s caught=%d\n", battleDex,
+    int split = line.indexOf(' ', 7);
+    int n = line.substring(7, split < 0 ? line.length() : split).toInt();
+    int8_t shinyOverride = -1;
+    if (split >= 0) shinyOverride = line.substring(split + 1).toInt() ? 1 : 0;
+    startBattleWith((int16_t)n, pet.level(), shinyOverride);
+    Serial.printf("battle #%d %s shiny=%d caught=%d\n", battleDex,
                   (battleDex >= 1 && battleDex <= DEX_COUNT) ? DEX_TBL[battleDex].name : "?",
-                  pet.isCaught(battleDex));
+                  battleShiny, pet.isCaught(battleDex));
     Serial.println("DONE");
   } else if (line == "BATTLE") {
     startBattle();
@@ -838,6 +845,9 @@ void handleSerial() {
     Serial.printf("shiny=%d streak=%u/%u bond=%u medals=0x%X(%u) nick=%s\n",
                   pet.shiny, pet.streak, pet.bestStreak, pet.bond, pet.medals,
                   pet.totalMedals, pet.nick);
+    Serial.printf("steps=%lu/%lu trail=%u shinyLuck=%u/4096 catchBonus=%u\n",
+                  (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
+                  pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus());
     Serial.println("DONE");
   } else if (line == "IMU") {
     Serial.printf("imu=%d addr=0x%02X mag=%.2f gyro=%.0f ped=%lu phase=%u hour=%d\n",
@@ -851,7 +861,14 @@ void handleSerial() {
   } else if (line.startsWith("WALK ")) {
     uint16_t n = (uint16_t)line.substring(5).toInt();
     uint8_t gained = pet.applyWalk(n);
-    Serial.printf("walk=%u joy=%u bond=%u\n", gained, pet.joy, pet.bond);
+    Serial.printf("walk=%u today=%lu total=%lu joy=%u bond=%u\n", gained,
+                  (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
+                  pet.joy, pet.bond);
+    Serial.println("DONE");
+  } else if (line == "STEPS") {
+    Serial.printf("steps today=%lu total=%lu rank=%u shiny=%u/4096 catch+%u\n",
+                  (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
+                  pet.stepTrailRank(), pet.stepShinyChancePer4096(), pet.stepCatchBonus());
     Serial.println("DONE");
   }
 }
@@ -985,6 +1002,9 @@ bool expeditionHudVisible();
 bool inExpeditionHudHit(int16_t x, int16_t y);
 void openExpeditionCard();
 void drawExpeditionHud();
+bool inStepsHudHit(int16_t x, int16_t y);
+void openStepsCard();
+void drawStepsHud();
 
 void onSwipeV(int dir) {
   if (helpOpen) { helpOpen = false; clockOpen = true; clockDirty = true; lockTouchBrief(); sfxPlay(SFX_TAP); return; }
@@ -1221,7 +1241,7 @@ void onTap(int16_t x, int16_t y) {
       bool fight = (x >= 93 && x <= 373 && y >= 226 && y <= 270);
       bool later = (x >= 93 && x <= 373 && y >= 278 && y <= 322);
       if (fight) {
-        startBattleWith(wildPromptDex, wildPromptLevel);
+        startBattleWith(wildPromptDex, wildPromptLevel, wildPromptShiny ? 1 : 0);
       } else if (later) {
         wildPromptUntil = 0;
         scheduleNextWild(millis());
@@ -1234,6 +1254,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (inExpeditionHudHit(x, y)) {
     openExpeditionCard();
+    return;
+  }
+  if (inStepsHudHit(x, y)) {
+    openStepsCard();
     return;
   }
   if (choiceKind) {          // dialogo de decision o selector de objetivo evolutivo
@@ -1650,6 +1674,7 @@ void render() {
     gfx->setTextSize(2);
     gfx->setCursor(CX - strlen(reg) * 6, 348);
     gfx->print(reg);
+    drawStepsHud();
   } else {
     const DexEntry &d = DEX_TBL[pet.speciesId];
     char name[28];
@@ -1657,6 +1682,7 @@ void render() {
     snprintf(name, sizeof(name), T(S_NAME_FMT), pet.shiny ? "*" : "", base, pet.level());
     drawHeader(name, gNight ? UI_INK_NIGHT : d.accent, statusMsg());
     drawStreakBadge();
+    drawStepsHud();
     drawPet();
     drawBath();
     drawPoops();
@@ -2711,6 +2737,7 @@ void maybeOfferWildEncounter(uint32_t now) {
 
   wildPromptDex = cand;
   wildPromptLevel = wildLevelFor(pet.level(), (uint8_t)random(100));
+  wildPromptShiny = (random(4096) < pet.stepShinyChancePer4096());
   wildPromptUntil = now + WILD_PROMPT_MS;
   scheduleNextWild(now);
   sfxPlay(SFX_MENU);
@@ -2810,7 +2837,7 @@ void closeBattle() {
   lockTouchBrief();
 }
 
-void startBattleWith(int16_t forcedDex, uint8_t forcedLevel) {
+void startBattleWith(int16_t forcedDex, uint8_t forcedLevel, int8_t forcedShiny) {
   if (!canStartWildBattle(pet.isEgg(), pet.sleeping, pet.ceremony)) return;
   wildPromptUntil = 0;
   scheduleNextWild(millis());
@@ -2823,6 +2850,7 @@ void startBattleWith(int16_t forcedDex, uint8_t forcedLevel) {
     battleDex = pickWildSpecies(speciesRoll, currentDayPhase());
     battleLevel = wildLevelFor(pet.level(), levelRoll);
   }
+  battleShiny = forcedShiny < 0 ? (random(4096) < pet.stepShinyChancePer4096()) : forcedShiny != 0;
   battlePlayer = petBattleStats();
   battleEnemy = wildBattleStats(battleDex, battleLevel);
   battleEnemy.hp = 0;
@@ -2843,13 +2871,13 @@ void startBattleWith(int16_t forcedDex, uint8_t forcedLevel) {
   battleOpen = true;
   battleDirty = true;
   wildPmd.unload();
-  wildPmd.load(battleDex, false);
+  wildPmd.load(battleDex, battleShiny);
   sfxPlay(SFX_TAP);
   speciesChirpPlay(battleDex);
 }
 
 void startBattle() {
-  startBattleWith(0, 0);
+  startBattleWith(0, 0, -1);
 }
 
 void finishBattle() {
@@ -2925,10 +2953,12 @@ void battleTap(int16_t x, int16_t y) {
         battleCatchTried = true;
         battleCatchDone = true;
         if (battleRespectCatch) {
-          battleCatchSuccess = pet.tryRespectCatchWild(battleDex, battleLevel, battlePlayer.level, (uint8_t)random(100));
+          battleCatchSuccess = pet.tryRespectCatchWild(battleDex, battleLevel, battlePlayer.level,
+                                                       (uint8_t)random(100), battleShiny);
           battleCatchChance = pet.respectCatchChanceForWild(battleDex, battleLevel, battlePlayer.level);
         } else {
-          battleCatchSuccess = pet.tryCatchWild(battleDex, battleLevel, battlePlayer.level, closeWin, (uint8_t)random(100));
+          battleCatchSuccess = pet.tryCatchWild(battleDex, battleLevel, battlePlayer.level, closeWin,
+                                                (uint8_t)random(100), battleShiny);
           battleCatchChance = pet.catchChanceForWild(battleDex, battleLevel, battlePlayer.level, closeWin);
         }
         sfxPlay(battleCatchSuccess ? SFX_CATCH_OK : SFX_CATCH_FAIL);
@@ -3103,7 +3133,8 @@ void drawWildPrompt() {
   gfx->setCursor(CX - strlen(T(S_WILD_Q)) * 9, 176);
   gfx->print(T(S_WILD_Q));
   char name[28];
-  snprintf(name, sizeof(name), "%s Lv.%u", dexName(wildPromptDex), wildPromptLevel);
+  snprintf(name, sizeof(name), "%s%s Lv.%u", wildPromptShiny ? "*" : "",
+           dexName(wildPromptDex), wildPromptLevel);
   gfx->setTextSize(2);
   gfx->setCursor(CX - strlen(name) * 6, 206);
   gfx->print(name);
@@ -3163,7 +3194,8 @@ void renderBattle() {
 
   char left[24], right[24];
   snprintf(left, sizeof(left), "%s Lv.%u", pet.nick[0] ? pet.nick : dexName(pet.speciesId), battlePlayer.level);
-  snprintf(right, sizeof(right), "%s Lv.%u", dexName(battleDex), battleLevel);
+  snprintf(right, sizeof(right), "%s%s Lv.%u", battleShiny ? "*" : "",
+           dexName(battleDex), battleLevel);
   gfx->setTextSize(2);
   gfx->setCursor(28, 82);
   gfx->print(left);
@@ -3706,6 +3738,18 @@ void drawCelebration() {
     snprintf(buf, sizeof(buf), T(S_STREAK_DAYS_FMT), pet.streak);
     l1 = T(S_GREAT);
     l2 = buf;
+  } else if (pet.showStepReward()) {
+    l1 = T(S_STEP_REWARD);
+    if (pet.lastStepReward() == STEP_REWARD_TRAIL_RANK) {
+      snprintf(buf, sizeof(buf), T(S_TRAIL_RANK_FMT), pet.stepTrailRank());
+      l2 = buf;
+    } else if (pet.lastStepReward() == STEP_REWARD_ENERGY) {
+      l2 = T(S_ITEM_ENERGY);
+    } else if (pet.lastStepReward() == STEP_REWARD_TRAIN) {
+      l2 = T(S_ITEM_TRAIN);
+    } else {
+      l2 = T(S_ITEM_SNACK);
+    }
   }
   if (!l1) return;
   gfx->fillRoundRect(73, 150, 320, 96, 16, UI_BAR_WARN);
@@ -4312,6 +4356,74 @@ void renderCardProgress() {
   gfx->print(ms);
 }
 
+StrId stepRewardTextId(uint8_t index) {
+  if (index == 0) return S_ITEM_SNACK;
+  if (index == 1) return S_ITEM_ENERGY;
+  return S_ITEM_TRAIN;
+}
+
+void renderCardSteps() {
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(3);
+  gfx->setCursor(CX - strlen(T(S_STEPS)) * 9, 44);
+  gfx->print(T(S_STEPS));
+
+  char today[28], total[28];
+  snprintf(today, sizeof(today), T(S_STEPS_TODAY_FMT), (unsigned long)pet.stepsToday);
+  snprintf(total, sizeof(total), T(S_STEPS_TOTAL_FMT), (unsigned long)pet.stepsTotal);
+  gfx->fillRoundRect(42, 76, 184, 58, 14, UI_WHITE);
+  gfx->drawRoundRect(42, 76, 184, 58, 14, UI_BAR_OK);
+  gfx->fillRoundRect(240, 76, 184, 58, 14, UI_WHITE);
+  gfx->drawRoundRect(240, 76, 184, 58, 14, UI_BAR_WARN);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(42 + (184 - (int)strlen(today) * 12) / 2, 99);
+  gfx->print(today);
+  gfx->setCursor(240 + (184 - (int)strlen(total) * 12) / 2, 99);
+  gfx->print(total);
+
+  char rank[24], shiny[24], catchBuf[24];
+  snprintf(rank, sizeof(rank), T(S_TRAIL_RANK_FMT), pet.stepTrailRank());
+  uint16_t units = pet.stepShinyChancePer4096();
+  uint16_t denominator = units ? (uint16_t)((4096U + units / 2U) / units) : 0;
+  snprintf(shiny, sizeof(shiny), T(S_SHINY_LUCK_FMT), denominator);
+  snprintf(catchBuf, sizeof(catchBuf), T(S_CATCH_BONUS_FMT), pet.stepCatchBonus());
+  gfx->setTextColor(UI_BAR_WARN);
+  gfx->setCursor(CX - (int)strlen(rank) * 6, 158);
+  gfx->print(rank);
+  gfx->setTextColor(UI_TRACK);
+  gfx->setTextSize(1);
+  gfx->setCursor(76, 184);
+  gfx->print(shiny);
+  gfx->setCursor(300, 184);
+  gfx->print(catchBuf);
+
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - strlen(T(S_DAILY)) * 6, 208);
+  gfx->print(T(S_DAILY));
+  for (uint8_t i = 0; i < STEP_DAILY_GOAL_COUNT; i++) {
+    uint32_t goal = pet.stepGoal(i);
+    uint32_t progress = pet.stepsToday < goal ? pet.stepsToday : goal;
+    bool done = pet.stepGoalComplete(i);
+    int y = 224 + i * 48;
+    uint16_t col = i == 0 ? UI_BAR_OK : (i == 1 ? UI_BAR_WARN : UI_BAR_BAD);
+    gfx->fillRoundRect(48, y, 370, 38, 10, done ? col : UI_WHITE);
+    gfx->drawRoundRect(48, y, 370, 38, 10, col);
+    gfx->setTextColor(done ? UI_BG_DAY : UI_INK);
+    gfx->setTextSize(1);
+    char goalText[18], prog[18];
+    snprintf(goalText, sizeof(goalText), T(S_STEP_GOAL_FMT), (unsigned long)goal);
+    snprintf(prog, sizeof(prog), "%lu/%lu", (unsigned long)progress, (unsigned long)goal);
+    gfx->setCursor(66, y + 9);
+    gfx->print(goalText);
+    gfx->setCursor(232, y + 9);
+    gfx->print(T(stepRewardTextId(i)));
+    gfx->setCursor(354, y + 9);
+    gfx->print(done ? T(S_DONE) : prog);
+  }
+}
+
 StrId expeditionItemText(ExpeditionItem item) {
   switch (item) {
     case EXP_ITEM_SNACK: return S_ITEM_SNACK;
@@ -4341,6 +4453,38 @@ static const int EXP_HUD_X = 310;
 static const int EXP_HUD_Y = 106;
 static const int EXP_HUD_W = 112;
 static const int EXP_HUD_H = 34;
+
+static const int STEP_HUD_X = 326;
+static const int STEP_HUD_Y = 14;
+static const int STEP_HUD_W = 126;
+static const int STEP_HUD_H = 26;
+
+bool inStepsHudHit(int16_t x, int16_t y) {
+  return x >= STEP_HUD_X && x <= STEP_HUD_X + STEP_HUD_W &&
+         y >= STEP_HUD_Y && y <= STEP_HUD_Y + STEP_HUD_H;
+}
+
+void openStepsCard() {
+  cardOpen = true;
+  cardPage = 8;
+  expeditionTrainChoiceOpen = false;
+  cardDirty = true;
+  lockTouchBrief();
+  sfxPlay(SFX_MENU);
+}
+
+void drawStepsHud() {
+  uint16_t color = pet.stepsToday >= 5000UL ? UI_BAR_WARN :
+                   pet.stepsToday >= 500UL ? UI_BAR_OK : UI_TRACK;
+  char label[24];
+  snprintf(label, sizeof(label), "%s %lu", T(S_STEPS), (unsigned long)pet.stepsToday);
+  gfx->fillRoundRect(STEP_HUD_X, STEP_HUD_Y, STEP_HUD_W, STEP_HUD_H, 8, UI_WHITE);
+  gfx->drawRoundRect(STEP_HUD_X, STEP_HUD_Y, STEP_HUD_W, STEP_HUD_H, 8, color);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(1);
+  gfx->setCursor(STEP_HUD_X + (STEP_HUD_W - (int)strlen(label) * 6) / 2, STEP_HUD_Y + 10);
+  gfx->print(label);
+}
 
 bool expeditionHudVisible() {
   if (pet.isEgg() || pet.ceremony || cardOpen || gameOpen || sackOpen || battleOpen ||
@@ -4619,7 +4763,8 @@ void renderCard() {
   else if (cardPage == 4) renderCardStats();
   else if (cardPage == 5) renderCardMedals();
   else if (cardPage == 6) renderCardProgress();
-  else renderCardExpedition();
+  else if (cardPage == 7) renderCardExpedition();
+  else renderCardSteps();
 
   // indicador de paginas + ayuda
   int dotsX = CX - ((CARD_COUNT - 1) * 24) / 2;

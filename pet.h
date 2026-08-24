@@ -56,6 +56,18 @@ enum ExpeditionItem : uint8_t {
 #define EXP_ITEM_COUNT 4
 #define EXP_ITEM_MAX 3
 
+// Belohnungen der taeglichen Schritt-Meilensteine. Die Werte werden nur
+// kurzzeitig fuer die Anzeige gespeichert; der eigentliche Fortschritt liegt
+// in stepDailyRewardMask/stepMilestoneMask.
+enum StepRewardEvent : uint8_t {
+  STEP_REWARD_NONE = 0,
+  STEP_REWARD_SNACK,
+  STEP_REWARD_ENERGY,
+  STEP_REWARD_TRAIN,
+  STEP_REWARD_TRAIL_RANK,
+};
+#define STEP_DAILY_GOAL_COUNT 3
+
 // Zustand fuer den kleinen Expeditions-Hinweis auf dem Hauptscreen.
 enum ExpeditionHudState : uint8_t {
   EXP_HUD_HIDDEN = 0,
@@ -113,7 +125,7 @@ public:
   uint8_t ceremony = CER_NONE;  // despedida/escapada/liberacion en curso
   uint8_t lastEnd = CER_NONE;   // como acabo la anterior (afecta al huevo)
   uint8_t dexReg[DEX_BITMAP_BYTES] = { 0 };       // pokedex de criados
-  uint8_t dexShinyReg[DEX_BITMAP_BYTES] = { 0 };  // criados en version shiny
+  uint8_t dexShinyReg[DEX_BITMAP_BYTES] = { 0 };  // shiny criado o capturado
   uint8_t dexCaught[DEX_BITMAP_BYTES] = { 0 };    // pokedex de salvajes capturados
   // racha de cuidado diario (del jugador: persiste entre crianzas)
   uint16_t streak = 0, bestStreak = 0;
@@ -143,6 +155,13 @@ public:
   uint8_t itemCounts[EXP_ITEM_COUNT] = { 0 };
   uint32_t expeditionEndEpoch = 0;
   uint8_t expeditionRewardItem = EXP_ITEM_NONE;
+  // Schrittfortschritt des Spielers: heute wird am RTC-Tag zurueckgesetzt,
+  // der Gesamtwert bleibt ueber Eier und neue Pokemon erhalten.
+  uint32_t stepsToday = 0;
+  uint32_t stepsTotal = 0;
+  uint32_t stepDay = 0;
+  uint8_t stepDailyRewardMask = 0;
+  uint8_t stepMilestoneMask = 0;
   bool saveLoadedFromNvs = false;
   bool saveCreatedThisBoot = false;
 
@@ -165,6 +184,13 @@ public:
   uint8_t interactPet(bool eveningBonus);
   bool applyShake();
   uint8_t applyWalk(uint16_t steps);
+  uint32_t stepGoal(uint8_t index) const;
+  bool stepGoalComplete(uint8_t index) const;
+  uint8_t stepTrailRank() const;
+  uint16_t stepShinyChancePer4096() const;
+  uint8_t stepCatchBonus() const;
+  bool showStepReward() const { return deadlineActive(millis(), stepRewardUntil); }
+  uint8_t lastStepReward() const { return lastStepRewardEvent; }
   bool takeMorningGreeting();
   PetPersonality personality() const;
   void ensureDailyGoals();
@@ -253,13 +279,15 @@ public:
   uint8_t collectionRank() const;
   uint8_t unlockedCollectionFrameCount() const;
   bool setCollectionFrame(uint8_t frame);
-  void registerCaught(int16_t dex);
+  void registerCaught(int16_t dex, bool shinyVariant = false);
   uint8_t nextDexGoal() const;
   uint8_t applyDexRewards();
   uint8_t catchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin) const;
   uint8_t respectCatchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel) const;
-  bool tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin, uint8_t luckRoll);
-  bool tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, uint8_t luckRoll);
+  bool tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin,
+                    uint8_t luckRoll, bool shinyVariant = false);
+  bool tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel,
+                           uint8_t luckRoll, bool shinyVariant = false);
   bool lineHasUnregistered(int16_t base) const;
   bool hasEvolutionPath(int16_t dex) const;
   uint8_t eggRarity() const;       // rareza del huevo actual (sin revelar especie)
@@ -328,12 +356,18 @@ private:
   uint8_t walkJoyToday = 0;
   uint8_t walkJoyHour = 0;
   uint8_t walkBondToday = 0;
+  uint32_t stepRewardUntil = 0;
+  uint8_t lastStepRewardEvent = STEP_REWARD_NONE;
+  uint8_t pendingStepRewardMask = 0;
 
   uint32_t today() const { return lastSeenEpoch ? lastSeenEpoch / 86400 : 0; }
   void registerCare();   // primer cuidado del dia: racha + vinculo
   void addBond(uint8_t amt);
   void noteDailyGoal(uint8_t goalType, uint8_t amount);
   void applyDailyReward();
+  void recordStepReward(uint8_t index);
+  void applyPendingStepRewards();
+  void ensureStepDay();
   void checkMedals();
   void tick();
   void hatch();

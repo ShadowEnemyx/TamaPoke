@@ -8,11 +8,14 @@ Original prompt: Vollständigen Gen-2-Plan lokal umsetzen und die Evolutionsvora
 - SpriteCollab-Normal-/Shiny-Pakete und Miniaturen für #161–251 erzeugt.
 - Lokale Firmware mit `TAMAPOKE_LOCAL_TEST` kompiliert; natives Testprogramm besteht.
 - Lokale Testseite enthält Auswahl für alle 251 Pokémon, Evolutionsziel-Auswahl und Paket-Buttons.
-- Lokaler Build meldet `1.34.0-gen2-full-local`; öffentliche Manifest-/Installer-Dateien
+- Lokaler Build meldet `1.35.0-step-trail-local`; öffentliche Manifest-/Installer-Dateien
   bleiben auf dem bisherigen Stand.
+- Persistenter Schrittzähler mit Tages-/Gesamtwert, 500/2.000/5.000-Trailbelohnungen,
+  Trail-Rängen sowie verbessertem Wild-Shiny- und Fangbonus ergänzt.
 
 ## Abschluss
 
 - Browser-Testseite per Syntax-/Playwright-Check ohne Console-Fehler geprüft.
 - Datenpakete, Firmware-Artefakte und Git-Diff geprüft; lokaler Commit erstellt.
-- Rücksprung: Tag `local-before-full-gen2`; fertiger Stand: `local-full-gen2-ready`.
+- Rücksprung: Tag `local-before-full-gen2`; Schritt-Rücksprung: `local-before-steps`.
+- Fertiger lokaler Schrittstand: `local-steps-ready` (nur lokal, kein Push).

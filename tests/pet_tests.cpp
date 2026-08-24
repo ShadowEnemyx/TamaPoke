@@ -854,6 +854,58 @@ static void testWalkGivesCappedJoyAndBond() {
   EXPECT_EQ(egg.applyWalk(80), 0);
 }
 
+static void testStepCounterRewardsAndDailyReset() {
+  Pet pet = hatchedPet(4);
+  pet.lastSeenEpoch = kNoonEpoch;
+  pet.joy = 40;
+
+  pet.applyWalk(500);
+  EXPECT_EQ(pet.stepsToday, 500U);
+  EXPECT_EQ(pet.stepsTotal, 500U);
+  EXPECT_TRUE(pet.stepGoalComplete(0));
+  EXPECT_EQ(pet.itemCounts[EXP_ITEM_SNACK], 1);
+
+  pet.applyWalk(1500);
+  EXPECT_EQ(pet.stepsToday, 2000U);
+  EXPECT_TRUE(pet.stepGoalComplete(1));
+  EXPECT_EQ(pet.itemCounts[EXP_ITEM_ENERGY], 1);
+
+  pet.applyWalk(3000);
+  EXPECT_EQ(pet.stepsToday, 5000U);
+  EXPECT_TRUE(pet.stepGoalComplete(2));
+  EXPECT_EQ(pet.itemCounts[EXP_ITEM_TRAIN], 1);
+  EXPECT_EQ(pet.stepCatchBonus(), 5);
+  EXPECT_EQ(pet.stepShinyChancePer4096(), 31);
+
+  Pet longWalk = hatchedPet(7);
+  longWalk.lastSeenEpoch = kNoonEpoch;
+  longWalk.applyWalk(10000);
+  EXPECT_EQ(longWalk.stepTrailRank(), 1);
+  EXPECT_EQ(longWalk.stepShinyChancePer4096(), 33);
+  longWalk.applyWalk(40000);
+  EXPECT_EQ(longWalk.stepTrailRank(), 2);
+  EXPECT_EQ(longWalk.stepCatchBonus(), 5);
+
+  // Ein neuer RTC-Tag loescht nur den Tageswert, nicht den Gesamtwert.
+  pet.setClock(kNoonEpoch + 86400UL);
+  EXPECT_EQ(pet.stepsToday, 0U);
+  EXPECT_EQ(pet.stepsTotal, 5000U);
+  EXPECT_TRUE(!pet.stepGoalComplete(0));
+}
+
+static void testStepCounterWorksForEggAndShinyCatchRegistration() {
+  Pet egg;
+  egg.lastSeenEpoch = kNoonEpoch;
+  EXPECT_EQ(egg.applyWalk(80), 0);
+  EXPECT_EQ(egg.stepsToday, 80U);
+  EXPECT_EQ(egg.stepsTotal, 80U);
+
+  Pet pet = hatchedPet(4);
+  EXPECT_TRUE(pet.tryCatchWild(25, 1, pet.level(), true, 0, true));
+  EXPECT_TRUE(pet.isCaught(25));
+  EXPECT_TRUE(pet.isShinyRegistered(25));
+}
+
 static void testMorningGreetingOncePerDay() {
   Pet pet = hatchedPet(4);
   pet.joy = 40;
@@ -964,6 +1016,8 @@ int main() {
   testOfflineNightHungerUsesHourOfEachMinute();
   testShakePlayHasCooldownAndDailyCap();
   testWalkGivesCappedJoyAndBond();
+  testStepCounterRewardsAndDailyReset();
+  testStepCounterWorksForEggAndShinyCatchRegistration();
   testMorningGreetingOncePerDay();
   testGen2EvolutionBranches();
   testGen2StarterFamiliesAndDexCompletion();

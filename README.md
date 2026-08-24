@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v1.34.0--gen2--full-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v1.35.0--step--trail-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/ShadowEnemyx/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/ShadowEnemyx/TamaPoke/stargazers)
@@ -283,7 +283,7 @@ pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 
 For local hardware tests there is a separate page at
 `http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
-`1.34.0-gen2-full-local` build with extra serial test commands. Keep this page
+`1.35.0-step-trail-local` build with extra serial test commands. Keep this page
 separate from the public `index.html`; do not publish the local manifest or
 local-test binaries to GitHub Pages.
 
@@ -356,7 +356,11 @@ wake a sleeping pet).
 
 **Motion (QMI8658):** shake the Pokeball on the main screen to play (small JOY,
 cooldown, daily cap). Walking with the screen off still counts steps and slowly
-raises JOY; USB charging ignores steps so a desk bump does not farm stats.
+raises JOY/BOND; the persistent **today + total** counters are shown in the
+top-right HUD and on the Steps card. Daily trail rewards unlock at **500 / 2,000 /
+5,000** steps. Wild Shiny odds improve with the day's steps (base 1/512,
+bounded near 1/128) and the catch chance gets a small capped bonus. USB charging
+ignores steps so a desk bump does not farm stats.
 
 ### Card view
 Swipe up from the main screen, then swipe between cards:
@@ -375,6 +379,8 @@ Swipe up from the main screen, then swipe between cards:
 - **Progress**: level, next level, evolution readiness and care slip-ups.
 - **Expedition**: launch 15/30/60-minute background tours, collect their reward
   and use the four stored item types.
+- **Steps / Trail**: today's and lifetime steps, trail rank, wild Shiny odds,
+  catch bonus and the three daily step rewards.
 
 ### Sound modes
 Swipe down to settings and tap the sound button:
@@ -511,7 +517,7 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 `SHINY` · `NICK <x>` · `BYE` / `RUN` (farewell / runaway) · `ABANDON` (force the
 runaway-ready state) · `WIPE` (factory reset → new game) · `BEEP` (audio test) ·
 `REG` (Pokédex) · `EGGS` (simulate 20 eggs) · `GAL` (gallery) · `CAREDAY` ·
-`TIME <epoch>` / `RTCSET <epoch>` · `IMU` · `SHAKE` · `WALK <n>` · `HEALTH` (uptime + heap for the soak test) ·
+`TIME <epoch>` / `RTCSET <epoch>` · `IMU` · `SHAKE` · `WALK <n>` · `STEPS` · `HEALTH` (uptime + heap for the soak test) ·
 `LS` / `PUT` (SD files). The local `TAMAPOKE_LOCAL_TEST` build additionally
 offers `TESTMON <dex> <shiny>` and `TESTEVO <source> <target>` through `web/dev.html`.
 

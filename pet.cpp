@@ -11,6 +11,26 @@ static void loadDexBitmap(Preferences &prefs, const char *key, uint8_t *dst, siz
   prefs.getBytes(key, dst, copyLen);
 }
 
+static const uint32_t STEP_DAILY_GOALS[STEP_DAILY_GOAL_COUNT] = {
+  500UL, 2000UL, 5000UL
+};
+static const uint32_t STEP_TOTAL_GOALS[] = {
+  10000UL, 50000UL, 100000UL, 250000UL
+};
+
+static uint8_t stepRewardBit(uint8_t index) {
+  return index < STEP_DAILY_GOAL_COUNT ? (uint8_t)(1U << index) : 0;
+}
+
+static ExpeditionItem stepRewardItemFor(uint8_t index) {
+  switch (index) {
+    case 0: return EXP_ITEM_SNACK;
+    case 1: return EXP_ITEM_ENERGY;
+    case 2: return EXP_ITEM_TRAIN;
+    default: return EXP_ITEM_NONE;
+  }
+}
+
 void Pet::begin() {
   prefs.begin("tamapoke", false);
   bool hadSave = prefs.getBool("init", false);
@@ -22,6 +42,7 @@ void Pet::begin() {
   } else {
     load();
   }
+  ensureStepDay();
   lastTick = millis();
 }
 
@@ -65,12 +86,14 @@ static uint8_t dropTo(uint8_t v, uint8_t d, uint8_t fl) {
 
 void Pet::setClock(uint32_t nowEpoch) {
   lastSeenEpoch = nowEpoch;
+  ensureStepDay();
   if (nowEpoch) save();  // persiste ya: un corte de luz no pierde la referencia
 }
 
 void Pet::syncClock(uint32_t nowEpoch) {
   uint32_t seen = prefs.getUInt("seen", 0);
   lastSeenEpoch = nowEpoch;
+  ensureStepDay();
   if (nowEpoch == 0) return;
   uint32_t mins = (seen && nowEpoch > seen) ? (nowEpoch - seen) / 60 : 0;
   if (mins < 2 || ceremony != CER_NONE) {
@@ -113,6 +136,7 @@ void Pet::syncClock(uint32_t nowEpoch) {
 }
 
 bool Pet::update(uint32_t nowMs) {
+  ensureStepDay();
   // fin de ceremonia: la criatura se va y queda un huevo nuevo
   if (ceremony != CER_NONE && deadlineReached(millis(), ceremonyUntil)) {
     newEgg();
@@ -504,10 +528,11 @@ uint8_t Pet::applyDexRewards() {
   return reached;
 }
 
-void Pet::registerCaught(int16_t dex) {
+void Pet::registerCaught(int16_t dex, bool shinyVariant) {
   if (dex < 1 || dex > DEX_COUNT) return;
   bool wasKnown = isRegistered(dex) || isCaught(dex);
   dexCaught[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
+  if (shinyVariant) dexShinyReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
   noteDailyGoal(DAILY_GOAL_CATCH, 1);
   if (!wasKnown) applyDexRewards();
   save();
@@ -523,6 +548,7 @@ uint8_t Pet::catchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8_t petL
   else if (levelGap < 0) chance += (-levelGap) * 2;
   if (closeWin) chance += 8;
   chance += bond / 20;
+  chance += stepCatchBonus();
   if (wild.rarity == R_RARO && chance > 60) chance = 60;
   if (chance > 75) chance = 75;
   if (chance < 10) chance = 10;
@@ -538,11 +564,12 @@ uint8_t Pet::respectCatchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8
   return chance;
 }
 
-bool Pet::tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin, uint8_t luckRoll) {
+bool Pet::tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin,
+                       uint8_t luckRoll, bool shinyVariant) {
   uint8_t chance = catchChanceForWild(wildDex, wildLevel, petLevel, closeWin);
   if (chance == 0) return false;
   if ((luckRoll % 100) < chance) {
-    registerCaught(wildDex);
+    registerCaught(wildDex, shinyVariant);
     joy = clamp100((int)joy + 4);
     addBond(1);
     save();
@@ -551,11 +578,12 @@ bool Pet::tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, boo
   return false;
 }
 
-bool Pet::tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, uint8_t luckRoll) {
+bool Pet::tryRespectCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel,
+                              uint8_t luckRoll, bool shinyVariant) {
   uint8_t chance = respectCatchChanceForWild(wildDex, wildLevel, petLevel);
   if (chance == 0) return false;
   if ((luckRoll % 100) < chance) {
-    registerCaught(wildDex);
+    registerCaught(wildDex, shinyVariant);
     save();
     return true;
   }
@@ -624,6 +652,7 @@ void Pet::hatch() {
   farDeclinedAge = 0;
   registerSpecies(speciesId);  // criado = registrado en la pokedex
   checkMedals();     // por si nace ya en forma final (legendario)
+  applyPendingStepRewards();
   sfxPlay(SFX_HATCH);
   save();
 }
@@ -942,8 +971,139 @@ bool Pet::applyShake() {
   return true;
 }
 
+void Pet::ensureStepDay() {
+  uint32_t d = today();
+  if (!d) return;
+  if (!stepDay) {
+    stepDay = d;
+    pendingSave = true;
+  } else if (stepDay != d) {
+    stepDay = d;
+    stepsToday = 0;
+    stepDailyRewardMask = 0;
+    pendingSave = true;
+  }
+}
+
+uint32_t Pet::stepGoal(uint8_t index) const {
+  return index < STEP_DAILY_GOAL_COUNT ? STEP_DAILY_GOALS[index] : 0;
+}
+
+bool Pet::stepGoalComplete(uint8_t index) const {
+  uint8_t bit = stepRewardBit(index);
+  return bit != 0 && (stepDailyRewardMask & bit) != 0;
+}
+
+uint8_t Pet::stepTrailRank() const {
+  uint8_t rank = 0;
+  for (uint8_t i = 0; i < sizeof(STEP_TOTAL_GOALS) / sizeof(STEP_TOTAL_GOALS[0]); i++) {
+    if (stepsTotal >= STEP_TOTAL_GOALS[i]) rank = i + 1;
+  }
+  return rank;
+}
+
+uint16_t Pet::stepShinyChancePer4096() const {
+  // Wilde Shinies bleiben selten: 8/4096 = 1/512 ohne Bewegung, bei
+  // 5.000 Tagesschritten steigt der Tagesanteil auf maximal 32/4096.
+  uint16_t units = 8;
+  uint32_t daily = stepsToday / 210UL;
+  if (daily > 24) daily = 24;
+  units += (uint16_t)daily;
+  // Gesamtmeilensteine geben einen kleinen, dauerhaften Trail-Vorteil.
+  if (stepsTotal >= STEP_TOTAL_GOALS[0]) units += 1;
+  if (stepsTotal >= STEP_TOTAL_GOALS[1]) units += 2;
+  if (stepsTotal >= STEP_TOTAL_GOALS[2]) units += 2;
+  if (stepsTotal >= STEP_TOTAL_GOALS[3]) units += 3;
+  return units > 40 ? 40 : units;
+}
+
+uint8_t Pet::stepCatchBonus() const {
+  uint32_t daily = stepsToday / 1000UL;
+  if (daily > 5) daily = 5;
+  uint8_t bonus = (uint8_t)daily;
+  if (stepsTotal >= STEP_TOTAL_GOALS[2]) bonus++;
+  if (stepsTotal >= STEP_TOTAL_GOALS[3]) bonus++;
+  return bonus;
+}
+
+void Pet::recordStepReward(uint8_t index) {
+  uint8_t bit = stepRewardBit(index);
+  if (!bit || (stepDailyRewardMask & bit)) return;
+  stepDailyRewardMask |= bit;
+
+  ExpeditionItem item = stepRewardItemFor(index);
+  if (item < EXP_ITEM_COUNT && canReceiveExpeditionItem(item)) {
+    itemCounts[item]++;
+  } else if (isEgg() || ceremony != CER_NONE) {
+    // Ein Ei hat noch keine Stats. Die Belohnung wird nach dem Schlüpfen
+    // erneut versucht, damit volle Taschen keinen Fortschritt verschlucken.
+    pendingStepRewardMask |= bit;
+  } else if (index == 0) {
+    joy = clamp100((int)joy + 5);
+  } else if (index == 1) {
+    energy = clamp100((int)energy + 10);
+  } else {
+    uint8_t *stat = &trAtk;
+    if (trDef < *stat && trDef <= trSpe) stat = &trDef;
+    else if (trSpe < *stat && trSpe < trDef) stat = &trSpe;
+    if (*stat < 100) *stat = clamp100((int)*stat + 2);
+    else joy = clamp100((int)joy + 8);
+  }
+
+  lastStepRewardEvent = (uint8_t)(STEP_REWARD_SNACK + index);
+  stepRewardUntil = millis() + 4500UL;
+  pendingSave = true;
+}
+
+void Pet::applyPendingStepRewards() {
+  if (!pendingStepRewardMask || isEgg() || ceremony != CER_NONE) return;
+  uint8_t pending = pendingStepRewardMask;
+  pendingStepRewardMask = 0;
+  for (uint8_t i = 0; i < STEP_DAILY_GOAL_COUNT; i++) {
+    uint8_t bit = stepRewardBit(i);
+    if (!(pending & bit)) continue;
+    ExpeditionItem item = stepRewardItemFor(i);
+    if (item < EXP_ITEM_COUNT && canReceiveExpeditionItem(item)) itemCounts[item]++;
+    else if (i == 0) joy = clamp100((int)joy + 5);
+    else if (i == 1) energy = clamp100((int)energy + 10);
+    else if (trAtk < 100) trAtk = clamp100((int)trAtk + 2);
+    else if (trDef < 100) trDef = clamp100((int)trDef + 2);
+    else if (trSpe < 100) trSpe = clamp100((int)trSpe + 2);
+    else joy = clamp100((int)joy + 8);
+    lastStepRewardEvent = (uint8_t)(STEP_REWARD_SNACK + i);
+    stepRewardUntil = millis() + 4500UL;
+  }
+  pendingSave = true;
+}
+
 uint8_t Pet::applyWalk(uint16_t steps) {
-  if (!steps || ceremony != CER_NONE || isEgg()) return 0;
+  if (!steps) return 0;
+  ensureStepDay();
+
+  uint32_t oldToday = stepsToday;
+  uint32_t oldTotal = stepsTotal;
+  uint32_t maxU32 = 0xFFFFFFFFUL;
+  stepsToday = (stepsToday > maxU32 - steps) ? maxU32 : stepsToday + steps;
+  stepsTotal = (stepsTotal > maxU32 - steps) ? maxU32 : stepsTotal + steps;
+
+  for (uint8_t i = 0; i < STEP_DAILY_GOAL_COUNT; i++)
+    if (stepsToday >= STEP_DAILY_GOALS[i]) recordStepReward(i);
+  for (uint8_t i = 0; i < sizeof(STEP_TOTAL_GOALS) / sizeof(STEP_TOTAL_GOALS[0]); i++) {
+    uint8_t bit = (uint8_t)(1U << i);
+    if (stepsTotal >= STEP_TOTAL_GOALS[i] && !(stepMilestoneMask & bit)) {
+      stepMilestoneMask |= bit;
+      lastStepRewardEvent = STEP_REWARD_TRAIL_RANK;
+      stepRewardUntil = millis() + 4500UL;
+      pendingSave = true;
+    }
+  }
+  if ((oldToday / 100UL) != (stepsToday / 100UL) ||
+      (oldTotal / 100UL) != (stepsTotal / 100UL)) pendingSave = true;
+
+  // Schritte werden auch beim Ei und in der Zeremonie gezaehlt; nur die
+  // bisherigen JOY/BOND-Wirkungen brauchen ein aktives Pokemon.
+  if (ceremony != CER_NONE || isEgg()) return 0;
+
   uint32_t d = today();
   uint32_t hour = unixHourFromEpoch(lastSeenEpoch);
   if (d != walkDay) {
@@ -1295,6 +1455,12 @@ void Pet::save() {
   prefs.putBytes("items", itemCounts, sizeof(itemCounts));
   prefs.putUInt("exend", expeditionEndEpoch);
   prefs.putUChar("exrwd", expeditionRewardItem);
+  prefs.putUInt("stday", stepDay);
+  prefs.putUInt("stoday", stepsToday);
+  prefs.putUInt("stotal", stepsTotal);
+  prefs.putUChar("stdone", stepDailyRewardMask);
+  prefs.putUChar("stmil", stepMilestoneMask);
+  prefs.putUChar("stpend", pendingStepRewardMask);
   prefs.putUInt("lmday", lastMorningDay);
   prefs.putUInt("shkday", shakeDay);
   prefs.putUChar("shkcnt", shakeCountToday);
@@ -1389,6 +1555,12 @@ void Pet::load() {
     if (itemCounts[i] > EXP_ITEM_MAX) itemCounts[i] = EXP_ITEM_MAX;
   expeditionEndEpoch = prefs.getUInt("exend", 0);
   expeditionRewardItem = prefs.getUChar("exrwd", EXP_ITEM_NONE);
+  stepDay = prefs.getUInt("stday", 0);
+  stepsToday = prefs.getUInt("stoday", 0);
+  stepsTotal = prefs.getUInt("stotal", 0);
+  stepDailyRewardMask = prefs.getUChar("stdone", 0) & ((1 << STEP_DAILY_GOAL_COUNT) - 1);
+  stepMilestoneMask = prefs.getUChar("stmil", 0) & ((1 << (sizeof(STEP_TOTAL_GOALS) / sizeof(STEP_TOTAL_GOALS[0]))) - 1);
+  pendingStepRewardMask = prefs.getUChar("stpend", 0) & ((1 << STEP_DAILY_GOAL_COUNT) - 1);
   lastMorningDay = prefs.getUInt("lmday", 0);
   shakeDay = prefs.getUInt("shkday", 0);
   shakeCountToday = prefs.getUChar("shkcnt", 0);

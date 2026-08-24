@@ -66,6 +66,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "MIRA LA SECUENCIA", "TU TURNO %u/%u", "ERA ESTE!",
     "JUGAR", "Nv.%u", "R%u", "C:%u A:%u", "NUEVO", "FLASH/NO",
     "BUENOS DIAS",
+    "PASOS", "HOY %lu", "TOTAL %lu", "RANGO RUTA %u",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASO %lu", "BONUS DE PASOS",
   },
   // ---------------- EN ----------------
   {
@@ -125,6 +127,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "WATCH THE SEQUENCE", "YOUR TURN %u/%u", "THIS ONE!",
     "PLAY", "Lv.%u", "R%u", "R:%u C:%u", "NEW", "FLASH/NO",
     "GOOD MORN.",
+    "STEPS", "TODAY %lu", "TOTAL %lu", "TRAIL RANK %u",
+    "SHINY 1/%u", "CATCH +%u%%", "STEP %lu", "TRAIL REWARD",
   },
   // ---------------- FR ----------------
   {
@@ -184,6 +188,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "REGARDE LA SUITE", "A TOI %u/%u", "C'ETAIT LUI!",
     "JOUER", "Niv.%u", "M%u", "E:%u C:%u", "NOUVEAU", "FLASH/NON",
     "BON MATIN",
+    "PAS", "AUJOURD'HUI %lu", "TOTAL %lu", "RANG TRAIL %u",
+    "SHINY 1/%u", "CAPTURE +%u%%", "PAS %lu", "BONUS DE PAS",
   },
   // ---------------- DE ----------------
   {
@@ -243,6 +249,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "MERKE DIR DIE FOLGE", "DEINE REIHE %u/%u", "DAS WAR RICHTIG!",
     "SPIELEN", "Lv.%u", "R%u", "A:%u G:%u", "NEU", "FLASH/NEIN",
     "GUTEN MORGEN",
+    "SCHRITTE", "HEUTE %lu", "GESAMT %lu", "TRAIL-RANG %u",
+    "SHINY 1/%u", "FANG +%u%%", "SCHRITT %lu", "SCHRITT-BONUS",
   },
   // ---------------- IT ----------------
   {
@@ -302,6 +310,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GUARDA LA SEQUENZA", "TOCCA A TE %u/%u", "ERA QUESTO!",
     "GIOCA", "Lv.%u", "T%u", "A:%u P:%u", "NUOVO", "FLASH/NO",
     "BUONGIORNO",
+    "PASSI", "OGGI %lu", "TOTALE %lu", "RANGO TRAIL %u",
+    "SHINY 1/%u", "PRESA +%u%%", "PASSO %lu", "BONUS PASSI",
   },
   // ---------------- PT ----------------
   {
@@ -361,6 +371,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "VEJA A SEQUENCIA", "SUA VEZ %u/%u", "ERA ESTE!",
     "JOGAR", "Niv.%u", "R%u", "C:%u A:%u", "NOVO", "FLASH/NAO",
     "BOM DIA",
+    "PASSOS", "HOJE %lu", "TOTAL %lu", "RANK TRILHA %u",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASSO %lu", "BONUS PASSOS",
   },
 };
 

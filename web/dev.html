@@ -43,7 +43,7 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.34.0-gen2-full-local</b> · 23 Aug 2026</p>
+  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.35.0-step-trail-local</b> · 24 Aug 2026</p>
   <p class="sub">A 251-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
@@ -55,10 +55,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.34.0-gen2-full-local</b> from 23 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.35.0-step-trail-local</b> from 24 Aug 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest-local.json?v=1.34.0-gen2-full-local">
-      <button slot="activate">⚡ Install LOCAL test 1.34.0</button>
+    <esp-web-install-button manifest="manifest-local.json?v=1.35.0-step-trail-local">
+      <button slot="activate">⚡ Install LOCAL test 1.35.0</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -110,6 +110,13 @@
       <button data-test-command="GAL" disabled>📖 Toggle gallery</button>
       <button data-test-command="SHINY" disabled>🔁 Toggle shiny</button>
     </div>
+    <div class="row test-actions">
+      <button data-test-command="WALK 500" disabled>👟 +500 steps</button>
+      <button data-test-command="WALK 2000" disabled>👟 +2,000 steps</button>
+      <button data-test-command="WALK 5000" disabled>👟 +5,000 steps</button>
+      <button data-test-command="STEPS" disabled>📊 Step status</button>
+      <button id="battle-shiny" disabled>✨ Shiny battle</button>
+    </div>
     <pre id="test-log"></pre>
   </div>
 
@@ -132,7 +139,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest-local.json?v=1.34.0-gen2-full-local')
+fetch('manifest-local.json?v=1.35.0-step-trail-local')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;
@@ -160,7 +167,7 @@ const testLog = (m) => { const el = document.getElementById('test-log'); el.styl
   el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
 const testButtons = [
   ...document.querySelectorAll('[data-test-command]'),
-  ...document.querySelectorAll('#show-pet, #show-shiny, #battle-selected, #mark-selected, #evolution-test, #mark-gen2')
+  ...document.querySelectorAll('#show-pet, #show-shiny, #battle-selected, #battle-shiny, #mark-selected, #evolution-test, #mark-gen2')
 ];
 const setTestButtons = (enabled) => testButtons.forEach((b) => { if (b) b.disabled = !enabled; });
 
@@ -317,6 +324,7 @@ const selectedDex = () => Number(dexSelect.value);
 document.getElementById('show-pet').onclick = () => sendTestCommands([`TESTMON ${selectedDex()} 0`]);
 document.getElementById('show-shiny').onclick = () => sendTestCommands([`TESTMON ${selectedDex()} 1`]);
 document.getElementById('battle-selected').onclick = () => sendTestCommands([`BATTLE ${selectedDex()}`]);
+document.getElementById('battle-shiny').onclick = () => sendTestCommands([`BATTLE ${selectedDex()} 1`]);
 document.getElementById('mark-selected').onclick = () => sendTestCommands([`CAUGHT ${selectedDex()}`]);
 document.getElementById('evolution-test').onclick = () =>
   sendTestCommands([`TESTEVO ${selectedDex()} ${Number(evoTarget.value)}`]);

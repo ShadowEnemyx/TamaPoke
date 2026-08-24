@@ -22,3 +22,4 @@ Original prompt: Vollständigen Gen-2-Plan lokal umsetzen und die Evolutionsvora
 - Datenpakete, Firmware-Artefakte und Git-Diff geprüft; lokaler Commit erstellt.
 - Rücksprung: Tag `local-before-full-gen2`; Schritt-Rücksprung: `local-before-steps`.
 - Fertiger lokaler Schrittstand: `local-steps-ready` (nur lokal, kein Push).
+- Final markiert auf Branch `local/full-gen2`: Tag `local-full-gen2-final`.

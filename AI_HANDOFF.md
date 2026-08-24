@@ -52,6 +52,8 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
   und zusaetzlich mit dem Tag `local-baseline-before-gen2-watermark` gesichert.
 - Der lokale Featurestand ist als `feat: add gen2 starters and local watermark` gesichert;
   es wurde nichts gepusht.
+- Der aktuell getestete, funktionierende lokale Stand ist als Tag
+  `local-full-gen2-final` markiert; der Branch bleibt `local/full-gen2`.
 - Der Arbeitsbaum enthaelt lokale, noch nicht veroeffentlichte Gen-2-,
   Wasserzeichen-, Lokalisierungs- und Sprite-Aenderungen. `web/index.html` und
   `web/manifest.json` bleiben auf dem oeffentlichen Ausgangsstand; nur

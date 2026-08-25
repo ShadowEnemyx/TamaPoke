@@ -18,21 +18,25 @@ same one as `tools/send_sd.py`).
 
 - `index.html` — the page (flashing + sprite loader).
 - `manifest.json` — ESP Web Tools config (points at the split firmware parts).
-- `dev.html` — local-only test page with click-based Gen-2 serial controls; it is not the public installer.
-- `manifest-local.json` — local-only `1.35.3-soft-step-local` manifest with debug
+- `dev.html` — local-only test page with click-based Gen-3 serial controls; it is not the public installer.
+- `manifest-local.json` — local-only `1.36.0-gen3-local` manifest with debug
   firmware parts.
 - `firmware/tamapoke-*-*.bin` — preserve-save firmware parts for ESP Web Tools.
-- `sprites.pak` — all 251 species in one bundle (TPAK), so the page sends them in
-  one click.
-- `sprites-gen2-update.pak` — only #161–251 plus the rebuilt thumbnail index for
-  quick local updates on a card that already has #1–160.
+- `sprites.pak` — the stable public bundle contains #1–251.
+- `sprites-gen3-full.pak` — local-only #1–386 bundle for an empty card.
+- `sprites-gen3-update.pak` — only #252–386 plus the rebuilt 386-entry thumbnail
+  index for a quick local update on a card that already has #1–251.
 
 ## Regenerate
 
 After changing the firmware or the sprites:
 
 ```bash
-bash tools/build_web.sh        # recompiles split firmware parts and rebuilds sprites.pak
+bash tools/build_web.sh        # stable public build
+bash tools/build_web_local.sh  # local 1.36.0-gen3-local build + #1–386 bundles
+# equivalent bundle-only commands:
+python3 tools/pack_bundle.py --gen3-full
+python3 tools/pack_bundle.py --gen3
 ```
 
 ## Test locally
@@ -46,11 +50,11 @@ cd web && python3 -m http.server 8000
 # local test installer:   http://localhost:8000/dev.html
 ```
 
-The public page and `manifest.json` currently target `1.35.3-soft-step`.
-The local page is for hardware tests and targets
-`1.35.3-soft-step-local`. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
+The public page and `manifest.json` currently target `1.35.3-soft-step` and
+#1–251. The local page is for hardware tests and targets
+`1.36.0-gen3-local` and #1–386. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
 click-driven commands `TESTMON`, `TESTEVO`, `CAUGHT`, `BATTLE`, `WALK`, `STEPS`,
-`IMU` and `STATS` for testing the full #152–251 Gen-2 range and the persistent
+`IMU` and `STATS` for testing the full #1–386 range and the persistent
 step/trail system. The step counter uses filtered accelerometer peaks; `IMU`
 shows both the raw chip pedometer and the software step counter, while `STATS`
 also shows whether USB is still detected.
@@ -60,8 +64,8 @@ Do not replace the public manifest with the local one.
 
 1. **Install TamaPoke** → flashes the firmware (pick the USB port; tick "Erase
    device" only for a fresh board; leave it off when updating and keeping a save).
-2. **Connect board** + **Load Gen-2 update** → downloads `sprites-gen2-update.pak`
-   and copies it to the microSD over USB (about 25 MB). Use **Load full 251 package**
+2. **Connect board** + **Load Gen-3 update** → downloads `sprites-gen3-update.pak`
+   and copies it to the microSD over USB (about 38 MB). Use **Load full 386 package**
    for an empty card. Close the step-1 install tab
    first: only one program can use the port at a time.
 3. Restart (PWR button) → choose your starter and play.

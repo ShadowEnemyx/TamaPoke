@@ -1,5 +1,7 @@
 #include "sdmon.h"
 #include "pin_config.h"
+#include "dex.h"
+#include "thumb_format.h"
 #include <FS.h>
 #include <SD_MMC.h>
 
@@ -7,7 +9,7 @@ bool sdReady = false;
 bool sdDirty = false;
 SdThumbs thumbs;
 
-bool PmdMon::load(uint8_t dexNum, bool shiny) {
+bool PmdMon::load(uint16_t dexNum, bool shiny) {
   unload();
   if (!sdReady) return false;
 
@@ -85,6 +87,7 @@ void PmdMon::unload() {
 }
 
 bool SdThumbs::load() {
+  unload();
   if (!sdReady) return false;
   File f = SD_MMC.open("/mons/thumbs.bin", FILE_READ);
   if (!f) {
@@ -93,23 +96,35 @@ bool SdThumbs::load() {
   }
   uint32_t size = f.size();
   data = (uint8_t *)ps_malloc(size);
-  if (!data || f.read(data, size) != size || memcmp(data, "TPTH", 4) != 0) {
+  uint16_t parsedCount = 0;
+  if (!data || f.read(data, size) != size ||
+      !validateThumbBlob(data, size, DEX_COUNT, &parsedCount)) {
     Serial.println("thumbs.bin invalido");
     if (data) { free(data); data = nullptr; }
     f.close();
     return false;
   }
   f.close();
-  memcpy(&count, data + 4, 2);
+  dataSize = size;
+  count = parsedCount;
   loaded = true;
   Serial.printf("miniaturas cargadas: %u (%u KB)\n", count, size / 1024);
   return true;
+}
+
+void SdThumbs::unload() {
+  if (data) free(data);
+  data = nullptr;
+  dataSize = 0;
+  count = 0;
+  loaded = false;
 }
 
 const uint8_t *SdThumbs::get(int16_t dex) const {
   if (!loaded || dex < 1 || dex > count) return nullptr;
   uint32_t off;
   memcpy(&off, data + 6 + 4 * (dex - 1), 4);
+  if (off > dataSize - 3) return nullptr;
   return data + off;
 }
 
@@ -125,7 +140,7 @@ bool sdBegin() {
   return sdReady;
 }
 
-bool SdMon::load(uint8_t dexNum, bool shiny) {
+bool SdMon::load(uint16_t dexNum, bool shiny) {
   unload();
   if (!sdReady) return false;
 

@@ -52,7 +52,7 @@ enum StrId : uint8_t {
   S_RUNAWAY_BTN,    // texto del boton de escapada por abandono (final triste)
   // dialogos de decision (evolucionar/mantener, despedirse/quedaros)
   S_EVO_Q, S_EVO_KEEP, S_FAR_Q, S_FAR_GO, S_FAR_STAY,
-  S_CHOOSE_STARTER,  // titulo de la eleccion del inicial (primera vez)
+  S_CHOOSE_STARTER, S_CHOOSE_REGION,  // seleccion inicial de region y starter
   S_NO_SPRITES, S_LOAD_SPRITES,  // aviso cuando falta el sprite en la SD
   S_WILD_BATTLE, S_FIGHT, S_RUN_BATTLE, S_WIN, S_LOSS, S_ROUNDS_FMT, S_DAMAGE_FMT, S_OK,
   S_ATTACK, S_DODGE, S_REST, S_HIT_FMT, S_MISSED, S_DODGED, S_RESTED_FMT, S_RAN,
@@ -82,6 +82,7 @@ enum StrId : uint8_t {
   S_COLLECTION, S_FRAME_FMT, S_NEW_FRAME,
   S_RANK_TRAINER, S_RANK_SCOUT, S_RANK_COLLECTOR, S_RANK_RESEARCHER, S_RANK_MASTER,
   S_RANK_KANTO, S_RANK_JOHTO, S_RANK_JOHTO_MASTER, S_RANK_COMPLETE,
+  S_RANK_HOENN, S_RANK_COMPLETE_ALL,
   S_MEMO_WATCH, S_MEMO_TURN_FMT, S_MEMO_WRONG,
   // kurze UI-Texte, die vorher als englische Literale im Sketch standen
   S_PLAY, S_LEVEL_SHORT_FMT, S_ROUND_SHORT_FMT, S_RAISED_CAUGHT_FMT,

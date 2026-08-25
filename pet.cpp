@@ -470,7 +470,7 @@ uint16_t Pet::knownDexCount() const {
 
 uint8_t Pet::collectionRank() const {
   uint16_t known = knownDexCount();
-  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251, 300, 386 };
   uint8_t rank = 0;
   for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++)
     if (known >= GOALS[i]) rank = i + 1;
@@ -489,24 +489,24 @@ bool Pet::setCollectionFrame(uint8_t frame) {
   return true;
 }
 
-uint8_t Pet::nextDexGoal() const {
-  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
+uint16_t Pet::nextDexGoal() const {
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251, 300, 386 };
   uint16_t known = knownDexCount();
   for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++)
-    if (known < GOALS[i]) return (uint8_t)GOALS[i];
-  return 251;
+    if (known < GOALS[i]) return GOALS[i];
+  return 386;
 }
 
-uint8_t Pet::applyDexRewards() {
+uint16_t Pet::applyDexRewards() {
   if (ceremony != CER_NONE || isEgg()) return 0;
-  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251 };
+  static const uint16_t GOALS[] = { 10, 25, 50, 100, 151, 160, 200, 251, 300, 386 };
   uint16_t known = knownDexCount();
-  uint8_t reached = 0;
+  uint16_t reached = 0;
   for (uint8_t i = 0; i < sizeof(GOALS) / sizeof(GOALS[0]); i++) {
-    uint8_t bit = 1 << i;
+    uint16_t bit = (uint16_t)1U << i;
     if (known < GOALS[i] || (dexRewardMask & bit)) continue;
     dexRewardMask |= bit;
-    reached = (uint8_t)GOALS[i];
+    reached = GOALS[i];
     if (GOALS[i] == 10) joy = clamp100((int)joy + 5);
     else if (GOALS[i] == 25) addBond(2);
     else if (GOALS[i] == 50) {
@@ -727,6 +727,20 @@ uint8_t Pet::evolutionRequiredLevel() const {
   return best > 100 ? 100 : (uint8_t)best;
 }
 
+uint8_t Pet::evolutionRequiredLevelFor(int16_t target) const {
+  if (isEgg() || speciesId < 1 || speciesId > DEX_COUNT) return 100;
+  uint16_t required = 0;
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId || (target > 0 && rule.to != target)) continue;
+    // For an automatic branch test, prepare the highest level so every branch
+    // can be selected. For an explicit target, only its matching rule matters.
+    if (rule.minLevel > required) required = rule.minLevel;
+  }
+  if (required == 0) return 100;
+  return required > 100 ? 100 : (uint8_t)required;
+}
+
 bool Pet::evolutionUnlocked() const {
   return evolutionOptionCount() > 0;
 }
@@ -756,6 +770,11 @@ void Pet::declineEvolve() {
     evoDeclinedLv = level();
   }
   save();
+}
+
+void Pet::resetEvolutionDeferral() {
+  evoDeclinedLv = 0;
+  evoDeclinedAge = 0;
 }
 
 void Pet::evolveTo(int16_t target) {
@@ -1447,7 +1466,10 @@ void Pet::save() {
   prefs.putUShort("bbstk", bestBattleStreak);
   prefs.putUChar("cfrm", collectionFrame);
   prefs.putUInt("pimin", lastPetInteractMinute);
-  prefs.putUChar("dxrew", dexRewardMask);
+  // dxrew was an 8-bit mask in releases through v1.35.3. Keep its low byte
+  // for downgrade compatibility and store the complete mask separately.
+  prefs.putUChar("dxrew", (uint8_t)(dexRewardMask & 0xFF));
+  prefs.putUShort("dxrw2", dexRewardMask);
   prefs.putUInt("dgday", dailyGoalDay);
   prefs.putBytes("dgtype", dailyGoalType, sizeof(dailyGoalType));
   prefs.putBytes("dgprog", dailyGoalProgress, sizeof(dailyGoalProgress));
@@ -1536,7 +1558,9 @@ void Pet::load() {
   collectionFrame = prefs.getUChar("cfrm", 0);
   if (collectionFrame >= unlockedCollectionFrameCount()) collectionFrame = 0;
   lastPetInteractMinute = prefs.getUInt("pimin", 0);
-  dexRewardMask = prefs.getUChar("dxrew", 0);
+  dexRewardMask = prefs.isKey("dxrw2")
+                    ? prefs.getUShort("dxrw2", 0)
+                    : (uint16_t)prefs.getUChar("dxrew", 0);
   dailyGoalDay = prefs.getUInt("dgday", 0);
   size_t gotTypes = prefs.getBytes("dgtype", dailyGoalType, sizeof(dailyGoalType));
   size_t gotProg = prefs.getBytes("dgprog", dailyGoalProgress, sizeof(dailyGoalProgress));

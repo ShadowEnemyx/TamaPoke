@@ -39,8 +39,9 @@ modify the firmware themselves.
 
 A classic-Pokémon-inspired tamagotchi for the
 **Waveshare ESP32-S3-Touch-AMOLED-1.75** (round 466×466 AMOLED, CO5300 driver
-over QSPI, CST9217 touch over I2C). Raise any of the 251, evolve it, train it
-and complete them all (shinies included).
+over QSPI, CST9217 touch over I2C). The public Gen-2 build lets you raise all
+251; the unpublished local Gen-3 candidate extends that to all 386 (shinies
+included).
 
 > **Personal, non-commercial fan project.** Code is MIT; the sprites are from
 > PMD SpriteCollab (CC BY-NC, Pokémon © Nintendo/Game Freak), and the 3D case is
@@ -50,9 +51,12 @@ and complete them all (shinies included).
 
 ## Status
 
-Running on hardware. The final branch is `local/full-gen2`; the tested local
-firmware is `1.35.3-soft-step-local` and the public build is `1.35.3-soft-step`.
-Implemented: all 251 + shinies animated from microSD, full
+Running on hardware. The public installer remains the stable `1.35.3-soft-step`
+build. The current, deliberately unpublished local candidate is on
+`local/full-gen3` as `1.36.0-gen3-local`; it is tested through `web/dev.html`
+and is not used by the public installer. The public build contains #1–251;
+the local candidate extends the data and sprites to #1–386. Implemented in the
+local candidate: all 386 + shinies animated from microSD, full
 life cycle (egg by rarity → evolution → farewell/release/runaway, each gated
 behind a decision dialog), bred-Pokédex with gallery, battle stats (genes +
 training), retention hooks (streak / bond / medals / name), biome + real-time
@@ -72,6 +76,16 @@ background tours and a small persistent item inventory.
 
 The final local hardware path is complete. Optional future work is limited to
 longer soak tests and balance tuning; it is not required for normal use.
+
+### Local Gen-3 candidate (not public)
+
+For local testing only, serve `web/` on `http://localhost` and open
+[`dev.html`](web/dev.html). It uses `manifest-local.json`, the
+`1.36.0-gen3-local` firmware, the full #1–386 sprite bundle, and a #252–386
+incremental bundle. It also exposes click-based test commands and the
+generation-aware starter picker. Do not replace the public `index.html` or
+`manifest.json` with these local files and do not publish this candidate until
+the hardware test is approved.
 
 ## Game manual (the actual numbers)
 
@@ -151,7 +165,7 @@ battles while the timer runs.
 ### Collection ranks and frames
 
 Raised and caught entries combine into one **known** Pokédex total. At **10,
-25, 50, 100, 151, 160, 200 and 251** known species, TamaPoke unlocks a new cosmetic collector
+25, 50, 100, 151, 160, 200, 251, 300 and 386** known species, TamaPoke unlocks a new cosmetic collector
 frame and rank. Open the **Profile** card to see your rank and choose any frame
 you have unlocked. Frames are visual only; they do not change battles, catches
 or rewards.
@@ -171,7 +185,7 @@ or rewards.
 - A daily **streak** and high **bond** push rare/legendary odds higher.
 - A clean **goodbye blesses** the next egg; a **run-away curses** it (forces Common).
 - Within a tier it favors species whose **evolution line you haven't finished** (so
-  all 251 are completable).
+  every species in the active build is completable).
 - **Shiny:** base **1 / 48** (→ **1 / 24** right after a goodbye), improved by
   streak/bond down to a best of **1 / 8**. Tracked separately in the dex.
 - Every hatch rolls unique **genes** (90–110 % per stat) — no two are identical.
@@ -293,7 +307,7 @@ pushes the sprites to the SD over Web Serial. Serve it over HTTPS or `localhost`
 
 For local hardware tests there is a separate page at
 `http://127.0.0.1:8000/dev.html`. It uses `manifest-local.json` and the
-`1.35.3-soft-step-local` build with extra serial test commands. Its step counter
+`1.36.0-gen3-local` build with extra serial test commands. Its step counter
 uses raw accelerometer data with cadence filtering and counts immediately after
 USB disconnect. Keep this page
 separate from the public `index.html`; do not publish the local manifest or
@@ -322,19 +336,34 @@ python3 tools/send_sd.py        # send tools/sdcard/mons/* to the board's SD ove
 To make the **one-click web-installer bundle** instead of sending over USB:
 
 ```bash
-python3 tools/pack_bundle.py    # bundle tools/sdcard/mons/* into web/sprites.pak
+python3 tools/pack_bundle.py    # stable public #1–251 bundle -> web/sprites.pak
+python3 tools/pack_bundle.py --gen3  # local incremental #252–386 bundle
 ```
 
 Then load it from the web installer's **"Load sprites"** button (or `send_sd.py`
 above). `pack_pmd.py` also takes individual dex numbers, e.g. `pack_pmd.py 7 25`.
-(~67 MB total for all 251 normal/shiny PMD sprites; the local Gen-2-only update
-is ~25 MB. Versioned under `tools/sdcard/`.)
+(The stable public bundle is the #1–251 `sprites.pak`; the local Gen-3-only
+update is `sprites-gen3-update.pak` (about 38 MB). The local installer's
+**Load full 386 package** action sends both files in sequence, so it also works
+with a new card without requiring a single GitHub-hosted file over 100 MB.)
+
+Firmware builds are fail-closed and can be verified without replacing existing
+installer files:
+
+```bash
+bash tools/build_web.sh --check        # pinned public Gen-2 source, 251 species
+bash tools/build_web_local.sh --check  # current local Gen-3 source, 386 species
+```
+
+Without `--check`, the scripts replace their respective installer artifacts
+only after firmware version, manifest, Dex size and bundle contents validate.
 
 ## How to play
 
-On first run you **choose a starter** (Bulbasaur / Charmander / Squirtle). After
-that you start with an **egg**. Tap it 3 times or wait and it hatches. From then
-on, care for your companion:
+On first run you **choose a region and starter** (Kanto, Johto or Hoenn; three
+starters per region) in the local Gen-3 candidate. The stable public build
+keeps the original Kanto starter picker. After that you start with an **egg**.
+Tap it 3 times or wait and it hatches. From then on, care for your companion:
 
 **Four stats** that decay: **FOOD**, **JOY**, **ENE** (energy), **HYG** (hygiene).
 If one bottoms out it counts as a *slip-up*.
@@ -496,13 +525,20 @@ The life cycle lasts **3 days** of play. Three endings (all leave a new egg):
 bars at zero for 1 h). Each bred species is recorded in the **bred Pokédex**
 (normal and shiny separately).
 
-The egg rolls rarity over the Gen-1/Gen-2 base forms, **biased towards the lines
-you're missing** (all 251 are completable), blessed by
+The egg rolls rarity over the available base forms, **biased towards the lines
+you're missing** (all 386 are completable in the local Gen-3 candidate), blessed by
 a farewell and punished by a runaway. Legendaries only with 25+ registered.
 **Shiny** 1/48 (better with streak/bond/farewell).
 
 **Languages:** the UI ships in 6 languages — English (default), Spanish, French,
 German, Italian, Portuguese — switchable from the settings screen (swipe down).
+
+> [!WARNING]
+> **Gen-3 installation requires two steps. Flashing the firmware is not enough.**
+> After flashing `1.36.0-gen3-local`, reconnect the board in step 2 of the local
+> installer and copy the Gen-3 sprites to its microSD. Use **Load full 386
+> package** for a new, empty or uncertain card. The smaller Gen-3 update is only
+> safe when that card already contains the complete #1–251 Gen-2 sprite set.
 
 ## Backgrounds: biome + real time
 
@@ -520,7 +556,7 @@ beach, forest, volcano, mountain, snow). Sleeping forces night.
 - `imu.h` / `imu.cpp` — QMI8658 poll, shake edge, pedometer delta
 - `audio.h` / `audio.cpp` — ES8311 + I2S + Game-Boy-style tone synth (non-blocking task)
 - `i18n.h` / `i18n.cpp` — the 6-language string tables
-- `dex.h` — GENERATED (`gen_dex.py`): the 251-species table and evolution rules
+- `dex.h` — GENERATED (`gen_dex.py`): the current 386-species table and evolution rules
 - `species.h` — GENERATED (`sprites.py`): fallback sprites, UI icons, colours
 - `pin_config.h` — the board's official pins
 - `tools/` — pipeline: `dex_data.py` (data), `dex_stats.py`, `gen_dex.py`,

@@ -147,7 +147,7 @@ public:
   uint16_t battleStreak = 0, bestBattleStreak = 0;
   uint8_t collectionFrame = 0;  // 0=Basis, weitere Rahmen ueber Dex-Meilensteine
   uint32_t lastPetInteractMinute = 0;
-  uint8_t dexRewardMask = 0;
+  uint16_t dexRewardMask = 0;
   uint32_t dailyGoalDay = 0;
   uint8_t dailyGoalType[DAILY_GOAL_COUNT] = { DAILY_GOAL_CARE, DAILY_GOAL_PLAY, DAILY_GOAL_CATCH };
   uint8_t dailyGoalProgress[DAILY_GOAL_COUNT] = { 0, 0, 0 };
@@ -245,6 +245,7 @@ public:
   uint8_t evolutionOptionCount() const;
   int16_t evolutionOption(uint8_t index) const;
   uint8_t evolutionRequiredLevel() const;
+  uint8_t evolutionRequiredLevelFor(int16_t target) const;
   bool canEvolveTo(int16_t target) const;
   void evolveTo(int16_t target);  // transforma a un objetivo elegido
   void evolve();                  // compatibilidad: elige una opcion disponible
@@ -254,6 +255,7 @@ public:
   bool wantEvolveButton() const;
   bool wantFarewellButton() const { return canFarewellNow() && ageMinutes >= farDeclinedAge; }
   void declineEvolve();
+  void resetEvolutionDeferral();
   void declineFarewell() { farDeclinedAge = ageMinutes + 1440; } // re-ofrece dentro de 1 dia
   // primera partida: el jugador elige inicial (Bulbasaur/Charmander/Squirtle)
   bool awaitingStarter() const { return starterPick; }
@@ -280,8 +282,8 @@ public:
   uint8_t unlockedCollectionFrameCount() const;
   bool setCollectionFrame(uint8_t frame);
   void registerCaught(int16_t dex, bool shinyVariant = false);
-  uint8_t nextDexGoal() const;
-  uint8_t applyDexRewards();
+  uint16_t nextDexGoal() const;
+  uint16_t applyDexRewards();
   uint8_t catchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin) const;
   uint8_t respectCatchChanceForWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel) const;
   bool tryCatchWild(int16_t wildDex, uint8_t wildLevel, uint8_t petLevel, bool closeWin,
@@ -312,7 +314,7 @@ public:
   bool showMedal() const { return deadlineActive(millis(), medalUntil); }
   bool showMilestone() const { return deadlineActive(millis(), milestoneUntil); }
   bool showDexReward() const { return deadlineActive(millis(), dexRewardUntil); }
-  uint8_t lastDexRewardGoal() const { return lastDexReward; }
+  uint16_t lastDexRewardGoal() const { return lastDexReward; }
   int careBonus() const;  // mejora del huevo por racha + vinculo
 
   // guardado periodico diferido: tick() marca pendiente y el loop lo vuelca
@@ -344,7 +346,7 @@ private:
   uint32_t medalUntil = 0;     // celebracion de medalla en pantalla
   uint32_t milestoneUntil = 0; // celebracion de hito de racha
   uint32_t dexRewardUntil = 0;
-  uint8_t lastDexReward = 0;
+  uint16_t lastDexReward = 0;
   uint32_t lastMorningDay = 0;
   uint32_t shakeReadyAt = 0;
   uint32_t shakeDay = 0;

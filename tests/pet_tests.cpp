@@ -1,11 +1,13 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "pet.h"
 #include "species_chirp.h"
 #include "time_utils.h"
 #include "dayphase.h"
+#include "thumb_format.h"
 
 uint32_t gMockMillis = 0;
 SerialMock Serial;
@@ -102,6 +104,9 @@ static void testEvolveOfferStaysWhenStatsDipAndReoffersAtCap() {
 
   pet.declineEvolve();
   EXPECT_TRUE(!pet.wantEvolveButton());
+  pet.resetEvolutionDeferral();
+  EXPECT_TRUE(pet.wantEvolveButton());
+  pet.declineEvolve();
   pet.ageMinutes = 28 * MINUTES_PER_LEVEL;  // Lv.29
   pet.joy = 80;
   pet.energy = 80;
@@ -369,7 +374,7 @@ static void testDexRewardsApplyOnceAndCap() {
   EXPECT_EQ(pet.knownDexCount(), 10);
   EXPECT_EQ(pet.dexRewardMask & 0x01, 0x01);
   EXPECT_EQ(pet.joy, 100);
-  uint8_t mask = pet.dexRewardMask;
+  uint16_t mask = pet.dexRewardMask;
   uint8_t joy = pet.joy;
 
   EXPECT_EQ(pet.applyDexRewards(), 0);
@@ -970,10 +975,93 @@ static void testGen2StarterFamiliesAndDexCompletion() {
 
   for (int16_t dex = 1; dex <= DEX_COUNT; dex++) pet.registerCaught(dex);
   EXPECT_EQ(pet.knownDexCount(), DEX_COUNT);
-  EXPECT_EQ(pet.collectionRank(), 8);
+  EXPECT_EQ(pet.collectionRank(), 10);
   EXPECT_EQ(pet.nextDexGoal(), DEX_COUNT);
-  EXPECT_EQ(pet.unlockedCollectionFrameCount(), 9);
-  EXPECT_TRUE(pet.setCollectionFrame(8));
+  EXPECT_EQ(pet.unlockedCollectionFrameCount(), 11);
+  EXPECT_TRUE(pet.setCollectionFrame(10));
+}
+
+static void testGen3DataAndEvolutionBranches() {
+  EXPECT_EQ(DEX_TBL[252].evolvesTo, 253);
+  EXPECT_EQ(DEX_TBL[255].evolvesTo, 256);
+  EXPECT_EQ(DEX_TBL[258].evolvesTo, 259);
+  EXPECT_EQ(DEX_TBL[299].evolvesTo, 0);  // Nosepass -> Probopass is Gen 4
+  EXPECT_EQ(DEX_TBL[386].bAtk, 150);
+  EXPECT_EQ(DEX_TBL[386].type1, TYPE_PSYCHIC);
+
+  Pet wurmple = hatchedPet(265);
+  wurmple.ageMinutes = 7 * MINUTES_PER_LEVEL;
+  EXPECT_TRUE(hasEvolutionTarget(wurmple, 266));
+  EXPECT_TRUE(hasEvolutionTarget(wurmple, 268));
+
+  Pet nincada = hatchedPet(290);
+  nincada.ageMinutes = 20 * MINUTES_PER_LEVEL;
+  EXPECT_TRUE(hasEvolutionTarget(nincada, 291));
+  EXPECT_TRUE(hasEvolutionTarget(nincada, 292));
+
+  Pet azurill = hatchedPet(298);
+  azurill.ageMinutes = 10 * MINUTES_PER_LEVEL;
+  azurill.bond = 50;
+  EXPECT_EQ(azurill.evolutionOptionCount(), 1);
+  EXPECT_EQ(azurill.evolutionOption(0), 183);
+
+  Pet feebas = hatchedPet(349);
+  feebas.ageMinutes = 30 * MINUTES_PER_LEVEL;
+  feebas.bond = 50;
+  EXPECT_EQ(feebas.evolutionOptionCount(), 1);
+  EXPECT_EQ(feebas.evolutionOption(0), 350);
+
+  Pet clamperl = hatchedPet(366);
+  clamperl.ageMinutes = 40 * MINUTES_PER_LEVEL;
+  EXPECT_TRUE(hasEvolutionTarget(clamperl, 367));
+  EXPECT_TRUE(hasEvolutionTarget(clamperl, 368));
+
+  const int16_t highLevelEvolutions[][2] = {
+    {305, 306}, {329, 330}, {364, 365}, {372, 373}, {375, 376}
+  };
+  const uint8_t expectedLevels[] = {42, 45, 44, 50, 45};
+  for (size_t i = 0; i < sizeof(highLevelEvolutions) / sizeof(highLevelEvolutions[0]); i++) {
+    Pet candidate = hatchedPet(highLevelEvolutions[i][0]);
+    uint8_t required = candidate.evolutionRequiredLevelFor(highLevelEvolutions[i][1]);
+    EXPECT_EQ(required, expectedLevels[i]);
+    candidate.ageMinutes = (uint32_t)(required - 1) * MINUTES_PER_LEVEL;
+    EXPECT_TRUE(hasEvolutionTarget(candidate, highLevelEvolutions[i][1]));
+  }
+
+  EXPECT_EQ(wurmple.evolutionRequiredLevelFor(266), 7);
+  EXPECT_EQ(wurmple.evolutionRequiredLevelFor(268), 7);
+  EXPECT_EQ(clamperl.evolutionRequiredLevelFor(367), 40);
+  EXPECT_EQ(clamperl.evolutionRequiredLevelFor(368), 40);
+}
+
+static std::vector<uint8_t> validThumbBlob() {
+  return {
+    'T', 'P', 'T', 'H', 2, 0,
+    14, 0, 0, 0, 20, 0, 0, 0,
+    1, 1, 1, 0x34, 0x12, 0,
+    1, 1, 1, 0x78, 0x56, 0xFF
+  };
+}
+
+static void testThumbBlobValidation() {
+  std::vector<uint8_t> blob = validThumbBlob();
+  uint16_t count = 0;
+  EXPECT_TRUE(validateThumbBlob(blob.data(), blob.size(), DEX_COUNT, &count));
+  EXPECT_EQ(count, 2);
+
+  std::vector<uint8_t> truncated = blob;
+  truncated.pop_back();
+  EXPECT_TRUE(!validateThumbBlob(truncated.data(), truncated.size(), DEX_COUNT));
+
+  std::vector<uint8_t> badOffset = blob;
+  badOffset[6] = 2;
+  EXPECT_TRUE(!validateThumbBlob(badOffset.data(), badOffset.size(), DEX_COUNT));
+
+  std::vector<uint8_t> badPixel = blob;
+  badPixel.back() = 1;
+  EXPECT_TRUE(!validateThumbBlob(badPixel.data(), badPixel.size(), DEX_COUNT));
+
+  EXPECT_TRUE(!validateThumbBlob(blob.data(), blob.size(), 1));
 }
 
 int main() {
@@ -1021,6 +1109,8 @@ int main() {
   testMorningGreetingOncePerDay();
   testGen2EvolutionBranches();
   testGen2StarterFamiliesAndDexCompletion();
+  testGen3DataAndEvolutionBranches();
+  testThumbBlobValidation();
 
   if (failures) {
     std::cerr << failures << " Testfehler\n";

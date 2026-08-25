@@ -35,6 +35,9 @@
          background:#fff; border:1px solid var(--track); border-radius:999px;
          font-size:.95rem; color:var(--ink); }
   .ver b { font-variant-numeric: tabular-nums; }
+  .mandatory { background:#fff2ee; border:2px solid var(--bad); border-radius:14px;
+         padding:1rem 1.2rem; margin:1rem 0 1.5rem; font-weight:600; }
+  .mandatory strong { color:var(--bad); }
   .test-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:.55rem; }
   .test-grid button { padding:.5rem .65rem; text-align:left; }
   .test-actions { margin-top:.75rem; }
@@ -43,10 +46,15 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.35.3-soft-step-local</b> · 24 Aug 2026</p>
-  <p class="sub">A 251-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
+  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.36.0-gen3-local</b> · 25 Aug 2026</p>
+  <p class="sub">A 386-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
+
+  <div class="mandatory"><strong>⚠️ REQUIRED: flashing alone is not enough.</strong><br>
+    After step 1, you must complete step 2 and copy the Gen-3 sprites to the
+    microSD. For a new, empty or uncertain card, choose <b>Load full 386 package</b>.
+    Use the smaller Gen-3 update only if #1–251 are already complete on that card.</div>
 
   <p class="unsupported" id="unsupported">
     ⚠️ Your browser doesn't support Web Serial. Use <b>Chrome</b> or <b>Edge</b> on a computer.
@@ -55,10 +63,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.35.3-soft-step-local</b> from 24 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.36.0-gen3-local</b> from 25 Aug 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest-local.json?v=1.35.3-soft-step-local">
-      <button slot="activate">⚡ Install LOCAL test 1.35.3</button>
+    <esp-web-install-button manifest="manifest-local.json?v=1.36.0-gen3-local">
+      <button id="install-local" slot="activate">⚡ Install LOCAL test 1.36.0-gen3-local</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -70,24 +78,26 @@
 
   <h2><span class="num">2</span>Load the sprites onto the microSD</h2>
   <div class="step">
+    <p><b>Mandatory after every first Gen-3 firmware installation:</b> the
+       firmware does not contain the Gen-3 sprite files itself.</p>
     <p>Put a microSD into the board (it formats itself). Press <b>Connect board</b>
        and then <b>Load sprites</b>: they download and copy over USB automatically
-       (~25 MB for the Gen-2 update, a few minutes). Don't remove the card.</p>
+       (~Gen-3 update package, a few minutes). Don't remove the card.</p>
     <p class="note">Close the step-1 install tab first (only one program can use
        the port at a time).</p>
     <div class="row">
       <button id="connect">🔌 Connect board</button>
-      <button id="auto" disabled>⬇️ Load Gen-2 update</button>
-      <button id="full" disabled>🧹 Load full 251 package</button>
+      <button id="auto" disabled>⬇️ Load Gen-3 update</button>
+      <button id="full" disabled>🧹 Load full 386 package</button>
     </div>
     <p class="note">Have your own <code>.bin</code> files? <label style="cursor:pointer;text-decoration:underline">pick them manually<input id="files" type="file" accept=".bin" multiple disabled hidden></label></p>
-    <p class="note">The Gen-2 update assumes #1–160 are already on the card. Use the full package for an empty/new card.</p>
+    <p class="note">The Gen-3 update assumes #1–251 are already on the card. Use the full package for an empty/new card.</p>
     <p class="note">🎨 Want to make your own sprites? See <a href="https://github.com/ShadowEnemyx/TamaPoke#generate-and-load-the-sprites-yourself" target="_blank">how to generate &amp; load them</a> in the repo.</p>
     <div class="bar" id="bar"><div></div></div>
     <pre id="log"></pre>
   </div>
 
-  <h2><span class="num">3</span> Test Gen 2 with clicks</h2>
+  <h2><span class="num">3</span> Test Gen 3 with clicks</h2>
   <div class="step">
     <p>After connecting the board above, click a Pokémon to show it immediately
        on the device. The buttons use the local debug firmware over Web Serial —
@@ -104,7 +114,7 @@
       <label for="evo-target">Evolution target:</label>
       <select id="evo-target"><option value="0">automatic</option></select>
       <button id="evolution-test" disabled>🧬 Prepare evolution</button>
-      <button id="mark-gen2" disabled>✅ Mark all Gen 2 caught</button>
+      <button id="mark-gen3" disabled>✅ Mark all Gen 3 caught</button>
     </div>
     <div class="row test-actions">
       <button data-test-command="GAL" disabled>📖 Toggle gallery</button>
@@ -143,7 +153,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest-local.json?v=1.35.3-soft-step-local')
+fetch('manifest-local.json?v=1.36.0-gen3-local')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;
@@ -155,6 +165,8 @@ fetch('manifest-local.json?v=1.35.3-soft-step-local')
     if (step) step.innerHTML = 'Installs firmware <b>' + m.version + '</b>' +
       (when ? ' from ' + when : '') +
       '. The same version is shown on the board in Settings after flashing.';
+    const install = document.getElementById('install-local');
+    if (install) install.textContent = '⚡ Install LOCAL test ' + m.version;
   })
   .catch(() => {});
 
@@ -166,29 +178,443 @@ if (!supported) { document.getElementById('unsupported').style.display='block';
 
 let port, reader, writer, lineBuf = '';
 let serialBusy = false;
+let serialClosing = false;
 
 const testLog = (m) => { const el = document.getElementById('test-log'); el.style.display='block';
   el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
 const testButtons = [
   ...document.querySelectorAll('[data-test-command]'),
-  ...document.querySelectorAll('#show-pet, #show-shiny, #battle-selected, #battle-shiny, #mark-selected, #evolution-test, #mark-gen2')
+  ...document.querySelectorAll('#show-pet, #show-shiny, #battle-selected, #battle-shiny, #mark-selected, #evolution-test, #mark-gen3')
 ];
 const setTestButtons = (enabled) => testButtons.forEach((b) => { if (b) b.disabled = !enabled; });
 
+function setConnectedUi(connected) {
+  document.getElementById('auto').disabled = !connected;
+  document.getElementById('full').disabled = !connected;
+  document.getElementById('files').disabled = !connected;
+  document.getElementById('connect').disabled = connected || !supported;
+  setTestButtons(connected);
+}
+
+const bounded = (promise, timeoutMs = 1500) => Promise.race([
+  Promise.resolve(promise).catch(() => undefined),
+  new Promise((resolve) => setTimeout(resolve, timeoutMs))
+]);
+
+async function disconnectBoard(message) {
+  if (serialClosing) return;
+  serialClosing = true;
+  const oldReader = reader, oldWriter = writer, oldPort = port;
+  reader = writer = port = undefined;
+  lineBuf = '';
+  setConnectedUi(false);
+  try {
+    if (oldReader) {
+      await bounded(oldReader.cancel('TamaPoke serial connection closed'));
+      try { oldReader.releaseLock(); } catch (_) {}
+    }
+    if (oldWriter) {
+      await bounded(oldWriter.abort('TamaPoke serial connection closed'));
+      try { oldWriter.releaseLock(); } catch (_) {}
+    }
+    if (oldPort) await bounded(oldPort.close());
+  } finally {
+    serialClosing = false;
+    if (message) log(message);
+  }
+}
+
 const dexNames = [
-  'Chikorita','Bayleef','Meganium','Cyndaquil','Quilava','Typhlosion','Totodile','Croconaw','Feraligatr',
-  'Sentret','Furret','Hoothoot','Noctowl','Ledyba','Ledian','Spinarak','Ariados','Crobat','Chinchou','Lanturn',
-  'Pichu','Cleffa','Igglybuff','Togepi','Togetic','Natu','Xatu','Mareep','Flaaffy','Ampharos','Bellossom','Marill',
-  'Azumarill','Sudowoodo','Politoed','Hoppip','Skiploom','Jumpluff','Aipom','Sunkern','Sunflora','Yanma','Wooper',
-  'Quagsire','Espeon','Umbreon','Murkrow','Slowking','Misdreavus','Unown','Wobbuffet','Girafarig','Pineco','Forretress',
-  'Dunsparce','Gligar','Steelix','Snubbull','Granbull','Qwilfish','Scizor','Shuckle','Heracross','Sneasel','Teddiursa',
-  'Ursaring','Slugma','Magcargo','Swinub','Piloswine','Corsola','Remoraid','Octillery','Delibird','Mantine','Skarmory',
-  'Houndour','Houndoom','Kingdra','Phanpy','Donphan','Porygon2','Stantler','Smeargle','Tyrogue','Hitmontop','Smoochum',
-  'Elekid','Magby','Miltank','Blissey','Raikou','Entei','Suicune','Larvitar','Pupitar','Tyranitar','Lugia','Ho-Oh','Celebi'
+  "Bulbasaur",
+  "Ivysaur",
+  "Venusaur",
+  "Charmander",
+  "Charmeleon",
+  "Charizard",
+  "Squirtle",
+  "Wartortle",
+  "Blastoise",
+  "Caterpie",
+  "Metapod",
+  "Butterfree",
+  "Weedle",
+  "Kakuna",
+  "Beedrill",
+  "Pidgey",
+  "Pidgeotto",
+  "Pidgeot",
+  "Rattata",
+  "Raticate",
+  "Spearow",
+  "Fearow",
+  "Ekans",
+  "Arbok",
+  "Pikachu",
+  "Raichu",
+  "Sandshrew",
+  "Sandslash",
+  "Nidoranf",
+  "Nidorina",
+  "Nidoqueen",
+  "Nidoranm",
+  "Nidorino",
+  "Nidoking",
+  "Clefairy",
+  "Clefable",
+  "Vulpix",
+  "Ninetales",
+  "Jigglypuff",
+  "Wigglytuff",
+  "Zubat",
+  "Golbat",
+  "Oddish",
+  "Gloom",
+  "Vileplume",
+  "Paras",
+  "Parasect",
+  "Venonat",
+  "Venomoth",
+  "Diglett",
+  "Dugtrio",
+  "Meowth",
+  "Persian",
+  "Psyduck",
+  "Golduck",
+  "Mankey",
+  "Primeape",
+  "Growlithe",
+  "Arcanine",
+  "Poliwag",
+  "Poliwhirl",
+  "Poliwrath",
+  "Abra",
+  "Kadabra",
+  "Alakazam",
+  "Machop",
+  "Machoke",
+  "Machamp",
+  "Bellsprout",
+  "Weepinbell",
+  "Victreebel",
+  "Tentacool",
+  "Tentacruel",
+  "Geodude",
+  "Graveler",
+  "Golem",
+  "Ponyta",
+  "Rapidash",
+  "Slowpoke",
+  "Slowbro",
+  "Magnemite",
+  "Magneton",
+  "Farfetchd",
+  "Doduo",
+  "Dodrio",
+  "Seel",
+  "Dewgong",
+  "Grimer",
+  "Muk",
+  "Shellder",
+  "Cloyster",
+  "Gastly",
+  "Haunter",
+  "Gengar",
+  "Onix",
+  "Drowzee",
+  "Hypno",
+  "Krabby",
+  "Kingler",
+  "Voltorb",
+  "Electrode",
+  "Exeggcute",
+  "Exeggutor",
+  "Cubone",
+  "Marowak",
+  "Hitmonlee",
+  "Hitmonchan",
+  "Lickitung",
+  "Koffing",
+  "Weezing",
+  "Rhyhorn",
+  "Rhydon",
+  "Chansey",
+  "Tangela",
+  "Kangaskhan",
+  "Horsea",
+  "Seadra",
+  "Goldeen",
+  "Seaking",
+  "Staryu",
+  "Starmie",
+  "Mrmime",
+  "Scyther",
+  "Jynx",
+  "Electabuzz",
+  "Magmar",
+  "Pinsir",
+  "Tauros",
+  "Magikarp",
+  "Gyarados",
+  "Lapras",
+  "Ditto",
+  "Eevee",
+  "Vaporeon",
+  "Jolteon",
+  "Flareon",
+  "Porygon",
+  "Omanyte",
+  "Omastar",
+  "Kabuto",
+  "Kabutops",
+  "Aerodactyl",
+  "Snorlax",
+  "Articuno",
+  "Zapdos",
+  "Moltres",
+  "Dratini",
+  "Dragonair",
+  "Dragonite",
+  "Mewtwo",
+  "Mew",
+  "Chikorita",
+  "Bayleef",
+  "Meganium",
+  "Cyndaquil",
+  "Quilava",
+  "Typhlosion",
+  "Totodile",
+  "Croconaw",
+  "Feraligatr",
+  "Sentret",
+  "Furret",
+  "Hoothoot",
+  "Noctowl",
+  "Ledyba",
+  "Ledian",
+  "Spinarak",
+  "Ariados",
+  "Crobat",
+  "Chinchou",
+  "Lanturn",
+  "Pichu",
+  "Cleffa",
+  "Igglybuff",
+  "Togepi",
+  "Togetic",
+  "Natu",
+  "Xatu",
+  "Mareep",
+  "Flaaffy",
+  "Ampharos",
+  "Bellossom",
+  "Marill",
+  "Azumarill",
+  "Sudowoodo",
+  "Politoed",
+  "Hoppip",
+  "Skiploom",
+  "Jumpluff",
+  "Aipom",
+  "Sunkern",
+  "Sunflora",
+  "Yanma",
+  "Wooper",
+  "Quagsire",
+  "Espeon",
+  "Umbreon",
+  "Murkrow",
+  "Slowking",
+  "Misdreavus",
+  "Unown",
+  "Wobbuffet",
+  "Girafarig",
+  "Pineco",
+  "Forretress",
+  "Dunsparce",
+  "Gligar",
+  "Steelix",
+  "Snubbull",
+  "Granbull",
+  "Qwilfish",
+  "Scizor",
+  "Shuckle",
+  "Heracross",
+  "Sneasel",
+  "Teddiursa",
+  "Ursaring",
+  "Slugma",
+  "Magcargo",
+  "Swinub",
+  "Piloswine",
+  "Corsola",
+  "Remoraid",
+  "Octillery",
+  "Delibird",
+  "Mantine",
+  "Skarmory",
+  "Houndour",
+  "Houndoom",
+  "Kingdra",
+  "Phanpy",
+  "Donphan",
+  "Porygon2",
+  "Stantler",
+  "Smeargle",
+  "Tyrogue",
+  "Hitmontop",
+  "Smoochum",
+  "Elekid",
+  "Magby",
+  "Miltank",
+  "Blissey",
+  "Raikou",
+  "Entei",
+  "Suicune",
+  "Larvitar",
+  "Pupitar",
+  "Tyranitar",
+  "Lugia",
+  "Ho-Oh",
+  "Celebi",
+  "Treecko",
+  "Grovyle",
+  "Sceptile",
+  "Torchic",
+  "Combusken",
+  "Blaziken",
+  "Mudkip",
+  "Marshtomp",
+  "Swampert",
+  "Poochyena",
+  "Mightyena",
+  "Zigzagoon",
+  "Linoone",
+  "Wurmple",
+  "Silcoon",
+  "Beautifly",
+  "Cascoon",
+  "Dustox",
+  "Lotad",
+  "Lombre",
+  "Ludicolo",
+  "Seedot",
+  "Nuzleaf",
+  "Shiftry",
+  "Taillow",
+  "Swellow",
+  "Wingull",
+  "Pelipper",
+  "Ralts",
+  "Kirlia",
+  "Gardevoir",
+  "Surskit",
+  "Masquerain",
+  "Shroomish",
+  "Breloom",
+  "Slakoth",
+  "Vigoroth",
+  "Slaking",
+  "Nincada",
+  "Ninjask",
+  "Shedinja",
+  "Whismur",
+  "Loudred",
+  "Exploud",
+  "Makuhita",
+  "Hariyama",
+  "Azurill",
+  "Nosepass",
+  "Skitty",
+  "Delcatty",
+  "Sableye",
+  "Mawile",
+  "Aron",
+  "Lairon",
+  "Aggron",
+  "Meditite",
+  "Medicham",
+  "Electrike",
+  "Manectric",
+  "Plusle",
+  "Minun",
+  "Volbeat",
+  "Illumise",
+  "Roselia",
+  "Gulpin",
+  "Swalot",
+  "Carvanha",
+  "Sharpedo",
+  "Wailmer",
+  "Wailord",
+  "Numel",
+  "Camerupt",
+  "Torkoal",
+  "Spoink",
+  "Grumpig",
+  "Spinda",
+  "Trapinch",
+  "Vibrava",
+  "Flygon",
+  "Cacnea",
+  "Cacturne",
+  "Swablu",
+  "Altaria",
+  "Zangoose",
+  "Seviper",
+  "Lunatone",
+  "Solrock",
+  "Barboach",
+  "Whiscash",
+  "Corphish",
+  "Crawdaunt",
+  "Baltoy",
+  "Claydol",
+  "Lileep",
+  "Cradily",
+  "Anorith",
+  "Armaldo",
+  "Feebas",
+  "Milotic",
+  "Castform",
+  "Kecleon",
+  "Shuppet",
+  "Banette",
+  "Duskull",
+  "Dusclops",
+  "Tropius",
+  "Chimecho",
+  "Absol",
+  "Wynaut",
+  "Snorunt",
+  "Glalie",
+  "Spheal",
+  "Sealeo",
+  "Walrein",
+  "Clamperl",
+  "Huntail",
+  "Gorebyss",
+  "Relicanth",
+  "Luvdisc",
+  "Bagon",
+  "Shelgon",
+  "Salamence",
+  "Beldum",
+  "Metang",
+  "Metagross",
+  "Regirock",
+  "Regice",
+  "Registeel",
+  "Latias",
+  "Latios",
+  "Kyogre",
+  "Groudon",
+  "Rayquaza",
+  "Jirachi",
+  "Deoxys"
 ];
 const dexSelect = document.getElementById('dex-select');
 for (let i = 0; i < dexNames.length; i++) {
-  const dex = i + 152;
+  const dex = i + 1;
   const opt = document.createElement('option');
   opt.value = dex;
   opt.textContent = `#${dex} ${dexNames[i]}`;
@@ -197,18 +623,16 @@ for (let i = 0; i < dexNames.length; i++) {
 const evoTargetMap = {
   42: [169], 44: [45, 182], 61: [62, 186], 79: [80, 199], 95: [208],
   113: [242], 117: [230], 123: [212], 133: [134, 135, 136, 196, 197],
-  137: [233], 236: [106, 107, 237]
+  137: [233], 236: [106, 107, 237],
+  265: [266, 268], 290: [291, 292], 298: [183], 300: [301],
+  349: [350], 366: [367, 368]
 };
-for (const [dex, name] of [[42, 'Golbat'], [44, 'Gloom'], [61, 'Poliwhirl'], [79, 'Slowpoke'],
-  [95, 'Onix'], [113, 'Chansey'], [117, 'Seadra'], [123, 'Scyther'], [133, 'Eevee'], [137, 'Porygon']]) {
-  dexSelect.insertBefore(new Option(`#${dex} ${name} (evolution test)`, String(dex)), dexSelect.firstChild);
-}
-dexSelect.value = '152';
+dexSelect.value = '252';
 const evoTarget = document.getElementById('evo-target');
 function refreshEvolutionTargets() {
   evoTarget.replaceChildren(new Option('automatic', '0'));
   for (const dex of (evoTargetMap[dexSelect.value] || [])) {
-    const name = dexNames[dex - 152] || `#${dex}`;
+    const name = dexNames[dex - 1] || `#${dex}`;
     evoTarget.appendChild(new Option(`#${dex} ${name}`, String(dex)));
   }
 }
@@ -220,10 +644,60 @@ async function readLine(timeoutMs = 6000) {
   while (true) {
     const nl = lineBuf.indexOf('\n');
     if (nl >= 0) { const l = lineBuf.slice(0, nl).trim(); lineBuf = lineBuf.slice(nl + 1); return l; }
-    if (Date.now() > deadline) return null;
-    const { value, done } = await reader.read();
-    if (done) return null;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      await disconnectBoard('Board response timed out. Reconnect and try again.');
+      throw new Error('Board response timed out');
+    }
+    const activeReader = reader;
+    if (!activeReader) throw new Error('Board is not connected');
+    const timeoutToken = {};
+    let timer;
+    let result;
+    try {
+      result = await Promise.race([
+        activeReader.read(),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(timeoutToken), remaining); })
+      ]);
+    } catch (e) {
+      clearTimeout(timer);
+      await disconnectBoard('USB read failed. Reconnect and try again.');
+      throw new Error('USB read failed: ' + e.message);
+    }
+    clearTimeout(timer);
+    if (result === timeoutToken) {
+      await disconnectBoard('Board response timed out. Reconnect and try again.');
+      throw new Error('Board response timed out');
+    }
+    const { value, done } = result;
+    if (done) {
+      await disconnectBoard('Board disconnected. Connect it again to continue.');
+      throw new Error('Board disconnected');
+    }
     lineBuf += new TextDecoder().decode(value);
+  }
+}
+
+async function writeSerial(data, timeoutMs = 6000) {
+  const activeWriter = writer;
+  if (!activeWriter) throw new Error('Board is not connected');
+  const timeoutToken = {};
+  let timer;
+  let result;
+  try {
+    result = await Promise.race([
+      activeWriter.write(data).then(() => true),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(timeoutToken), timeoutMs); })
+    ]);
+  } catch (e) {
+    clearTimeout(timer);
+    await disconnectBoard('USB write failed. Reconnect and try again.');
+    throw new Error('USB write failed: ' + e.message);
+  }
+  clearTimeout(timer);
+  if (result === timeoutToken) {
+    await disconnectBoard('USB write timed out. Reconnect and try again.');
+    throw new Error('USB write timed out');
   }
 }
 
@@ -242,17 +716,17 @@ const enc = new TextEncoder();
 
 // sends one file to the board with the PUT protocol (name includes the mons/ prefix)
 async function sendOne(name, data) {
-  await writer.write(enc.encode(`PUT ${name} ${data.length}\n`));
+  await writeSerial(enc.encode(`PUT ${name} ${data.length}\n`));
   if (!await waitFor('OK')) return false;
   for (let i = 0; i < data.length; i += 2048) {
-    await writer.write(data.slice(i, i + 2048));
+    await writeSerial(data.slice(i, i + 2048));
     if (!await waitFor('#')) return false;
   }
   return await waitFor('DONE', 30000);
 }
 
 async function sendCommand(command) {
-  await writer.write(enc.encode(command + '\n'));
+  await writeSerial(enc.encode(command + '\n'));
   const lines = [];
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
@@ -315,6 +789,8 @@ async function sendAll(items) {
       fill.style.width = (done / items.length * 100) + '%';
     }
     log(`Done (${done - fail}/${items.length}). Restart the board (PWR button).`);
+  } catch (e) {
+    log('Transfer stopped: ' + e.message);
   } finally {
     serialBusy = false;
     setTestButtons(Boolean(writer));
@@ -332,8 +808,8 @@ document.getElementById('battle-shiny').onclick = () => sendTestCommands([`BATTL
 document.getElementById('mark-selected').onclick = () => sendTestCommands([`CAUGHT ${selectedDex()}`]);
 document.getElementById('evolution-test').onclick = () =>
   sendTestCommands([`TESTEVO ${selectedDex()} ${Number(evoTarget.value)}`]);
-document.getElementById('mark-gen2').onclick = () => sendTestCommands(
-  Array.from({ length: 100 }, (_, i) => `CAUGHT ${i + 152}`));
+document.getElementById('mark-gen3').onclick = () => sendTestCommands(
+  Array.from({ length: 135 }, (_, i) => `CAUGHT ${i + 252}`));
 
 document.getElementById('connect').onclick = async () => {
   try {
@@ -342,37 +818,42 @@ document.getElementById('connect').onclick = async () => {
     reader = port.readable.getReader();
     writer = port.writable.getWriter();
     lineBuf = '';
-    log('Connected. Press "Load Gen-2 update".');
-    document.getElementById('auto').disabled = false;
-    document.getElementById('full').disabled = false;
-    document.getElementById('files').disabled = false;
-    document.getElementById('connect').disabled = true;
-    setTestButtons(true);
-  } catch (e) { log('Could not connect: ' + e.message); }
+    log('Connected. Press "Load Gen-3 update".');
+    setConnectedUi(true);
+  } catch (e) {
+    await disconnectBoard();
+    log('Could not connect: ' + e.message);
+  }
 };
 
-async function loadBundle(path, label) {
+async function fetchBundle(path) {
+  const resp = await fetch(path);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return parsePak(await resp.arrayBuffer());
+}
+
+async function loadBundles(paths, label) {
   if (!writer) { log('Connect the board first.'); return; }
   log(`Downloading ${label}...`);
-  let items;
+  const items = [];
   try {
-    const resp = await fetch(path);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    items = parsePak(await resp.arrayBuffer());
-  } catch (e) { log(`Could not download ${path}: ${e.message}`); return; }
+    for (const path of paths) items.push(...await fetchBundle(path));
+  } catch (e) { log(`Could not download ${label}: ${e.message}`); return; }
   log(`${items.length} sprites. Sending over USB...`);
   await sendAll(items);
 }
 
+const loadBundle = (path, label) => loadBundles([path], label);
+
 document.getElementById('auto').onclick = async () => {
   document.getElementById('auto').disabled = true;
-  await loadBundle('sprites-gen2-update.pak', 'Gen-2 update (~25 MB)');
-  document.getElementById('auto').disabled = false;
+  await loadBundle('sprites-gen3-update.pak', 'Gen-3 update');
+  document.getElementById('auto').disabled = !writer;
 };
 document.getElementById('full').onclick = async () => {
   document.getElementById('full').disabled = true;
-  await loadBundle('sprites.pak', 'full 251-Pokemon bundle (~67 MB)');
-  document.getElementById('full').disabled = false;
+  await loadBundles(['sprites.pak', 'sprites-gen3-update.pak'], 'full 386-Pokemon bundle');
+  document.getElementById('full').disabled = !writer;
 };
 
 document.getElementById('files').onchange = async (ev) => {

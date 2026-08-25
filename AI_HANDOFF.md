@@ -1,6 +1,6 @@
 # TamaPoke Expanded - AI Handoff
 
-Stand: 2026-08-23
+Stand: 2026-08-25
 
 ## Projekt und Hardware
 
@@ -10,7 +10,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
-- Aktueller lokaler Gen-2/Wasserzeichen-/Schritt-Test: `1.35.3-soft-step-local` (ueber `TAMAPOKE_LOCAL_TEST`)
+- Aktueller lokaler Gen-3/Wasserzeichen-/Schritt-Test: `1.36.0-gen3-local` (ueber `TAMAPOKE_LOCAL_TEST`)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
@@ -29,16 +29,40 @@ Der Nutzer moechte unfertige lokale Versionen erst auf seiner Hardware testen.
 Lokales Bauen, Testen und ein lokaler Web-Installer sind immer erlaubt und
 erwuenscht.
 
+## Aktueller Gen-3-Arbeitsstand
+
+- Branch `local/full-gen3`; Tag `local-before-gen3` erlaubt die schnelle
+  Rueckkehr zum funktionierenden Gen-2-Stand. Noch kein Push und kein Release.
+- Lokaler Dex #1–386 mit sechs Sprachen, uint16-Dexpfaden, Gen-3-Stats/Typen,
+  Evolutionsregeln und dem 3-von-4-Stats-Gate ueber 40 Prozent.
+- Lokaler Erststart: Region Kanto/Johto/Hoenn waehlen, danach einen von drei
+  Regions-Startern. Vorhandene Saves werden nicht migriert oder geloescht.
+- Alle 270 Gen-3-SpriteCollab-Dateien (Normal + Shiny) sind in
+  `tools/sdcard/mons/`; `thumbs.bin` hat 386 Eintraege.
+- `web/sprites-gen3-update.pak` umfasst #252–386 (ca. 38 MB). Das oeffentliche
+  `web/sprites.pak` bleibt #1–251. Der lokale Button fuer das volle 386er-Paket
+  sendet beide Dateien nacheinander; dadurch bleibt jede GitHub-Datei unter
+  dem 100-MB-Limit.
+- Lokaler Webtest: `cd web && python3 -m http.server 8000`, danach
+  `http://localhost:8000/dev.html` in Chrome/Edge. Schritt-, IMU- und
+  Evolutionsdiagnosen laufen dort ueber Klicks; kein `screen`-Terminal noetig.
+- Build mit `bash tools/build_web_local.sh`; die vier lokalen Firmware-Parts
+  liegen danach unter `web/firmware/tamapoke-1.36.0-gen3-local-*.bin`.
+- Bei jeder spaeteren Gen-3-Veroeffentlichung muessen README, Installer und
+  Release-Text deutlich sagen: Firmware-Flash allein reicht nicht; danach ist
+  Schritt 2 fuer die microSD-Sprites Pflicht. Bei neuer/leerer/unklarer Karte
+  immer das volle 386er-Paket statt nur des Gen-3-Updates verwenden.
+
 ## Aktueller Arbeitsbaum
 
-Der oeffentliche Installer zeigt auf den stabilen `1.35.3-soft-step`-Build.
+Der oeffentliche Installer zeigt weiterhin auf den stabilen `1.35.3-soft-step`-Build.
 Fuer Hardwaretests existieren zusaetzlich `web/dev.html` und
 `web/manifest-local.json`; diese Debug-Dateien sind bewusst nicht Teil des
 oeffentlichen Installationsflusses.
 
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
-- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.35.3-soft-step-local`.
+- `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.36.0-gen3-local`.
 - Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
   und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
@@ -48,7 +72,8 @@ Aktuelle lokale Testguards in `TamaPoke.ino`:
 
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
-- Branch: `local/full-gen2`
+- Aktueller Branch: `local/full-gen3` (der Gen-2-Stand bleibt historisch auf
+  `local/full-gen2` erhalten).
 - `fork`: `https://github.com/ShadowEnemyx/TamaPoke.git`
 - `origin`: `https://github.com/socquique/TamaPoke.git`
 - Der Ausgangspunkt ist lokal als `3b24ea8` (`chore: save local baseline before gen2 watermark`)
@@ -56,8 +81,10 @@ Aktueller Git-Zustand bei Erstellung dieser Datei:
 - Der lokale Featurestand ist als `feat: add gen2 starters and local watermark` gesichert;
   der finale Stand wurde nach ausdruecklicher Nutzerfreigabe auf `fork/main`
   veroeffentlicht.
-- Der aktuell getestete, funktionierende lokale Stand ist als Tag
-  `local-full-gen2-final` markiert; der Branch bleibt `local/full-gen2`.
+- Der letzte getestete Gen-2-Stand ist historisch als Tag
+  `local-full-gen2-final` markiert. Der aktuelle Arbeitsbranch ist
+  `local/full-gen3`; vor den Bugfixes liegt zusätzlich der lokale Tag
+  `local-before-gen3-bugfix-20260825`.
 - Der Arbeitsbaum enthaelt den veroeffentlichten Gen-2-, Wasserzeichen-,
   Lokalisierungs-, Sprite- und Schrittstand. `web/index.html` und
   `web/manifest.json` zeigen auf den oeffentlichen Build; nur `web/dev.html`
@@ -169,10 +196,12 @@ Die Spezies-Rufe und alle UI-/Battle-/Minigame-Sounds sind synthetisch:
 Die Lautstaerke und Wirkung muessen weiterhin auf echter Hardware beurteilt
 werden; Desktop-Builds koennen den ES8311-/Lautsprecherweg nicht ersetzen.
 
-## Aktuelle lokale Aenderungen seit der letzten Veroeffentlichung
+## Versionschronik
 
-Die folgenden Aenderungen sind implementiert, getestet, gebaut und nach
-Nutzerfreigabe auf `fork/main` veroeffentlicht:
+Die folgenden Eintraege dokumentieren den damaligen Entwicklungsstand. Nicht
+jede Testversion wurde veroeffentlicht; Angaben zu frueheren Branches sind keine
+Beschreibung des aktuellen Arbeitsbaums. Aktuell ist nur `1.36.0-gen3-local`
+der unveroeffentlichte Gen-3-Kandidat.
 
 1. `1.29.3-reliability`
    - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
@@ -208,7 +237,7 @@ Nutzerfreigabe auf `fork/main` veroeffentlicht:
      ohne Auto-Wecken.
    - QMI8658: Schuetteln gibt JOY auf dem Hauptscreen (Cooldown 25 s, 8/Tag).
      Schritte auch bei Screen-off; der damalige Build verwarf USB-Steps.
-     Aktuell zaehlt `1.35.3-soft-step-local` auch bei USB. Serial: `IMU`, `SHAKE`,
+     Der spaetere Schritt-Testbuild zaehlte auch bei USB. Serial: `IMU`, `SHAKE`,
      `WALK n`, `STEPS`, `STATS`. Die lokale Testseite bietet zusaetzlich klickbare
      `IMU`-/`STATS`-Diagnosebuttons; `STATS` zeigt auch `usb=0/1`.
 7. `1.31.1-shake-fix`
@@ -241,6 +270,11 @@ Nutzerfreigabe auf `fork/main` veroeffentlicht:
    - Der QMI-Hardwarezaehler bleibt zur Diagnose sichtbar; Schritte werden aus
      gefilterten Beschleunigungsimpulsen erkannt. USB blockiert das Zaehlen nicht
      mehr; Roh-, Software- und USB-Status sind ueber `STATS`/`IMU` pruefbar.
+13. `1.36.0-gen3-local`
+   - Lokaler Dex und Spritebestand #1-386 mit Hoenn-Startern, allen Gen-3-Arten,
+     sechs Sprachen und Gen-3-Evolutionsregeln.
+   - Nur `tools/build_web_local.sh` erzeugt diesen Kandidaten. Der oeffentliche
+     Gen-2-Build bleibt unveraendert und wird aus einem gepinnten Commit gebaut.
 
 ## Architektur und wichtige Dateien
 
@@ -293,17 +327,16 @@ web/firmware/tamapoke-1.35.3-soft-step-app.bin
 
 ### Lokaler Testinstaller
 
-Fuer uncommittete Hardwaretests kann ein separates Testbuild erzeugt werden:
+Fuer Hardwaretests wird der abgesicherte lokale Buildweg verwendet:
 
 ```bash
-FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-arduino-cli compile --fqbn "$FQBN" \
-  --build-property compiler.cpp.extra_flags=-DTAMAPOKE_LOCAL_TEST \
-  --build-path /tmp/tamapoke-gen2-local-build --export-binaries .
+bash tools/build_web_local.sh
+# oder ohne Aenderung bestehender Installerdateien:
+bash tools/build_web_local.sh --check
 ```
 
 Die vier erzeugten Parts muessen unter den in `web/manifest-local.json`
-genannten `1.35.3-soft-step-local`-Namen liegen. Die Browserinstaller-Parts
+genannten `1.36.0-gen3-local`-Namen liegen. Die Browserinstaller-Parts
 werden fuer reproduzierbare lokale und oeffentliche Tests versioniert. Danach:
 
 ```bash
@@ -316,7 +349,7 @@ Testupdate `Erase device` deaktiviert lassen.
 ## Verifikation vor einer eventuellen Veroeffentlichung
 
 1. `cd tests && make clean && make test`
-2. `bash tools/build_web.sh`
+2. `bash tools/build_web.sh --check` und `bash tools/build_web_local.sh --check`
 3. `git diff --check`
 4. Hardware-Smoke-Test ohne Erase:
    - Save/Pet bleibt erhalten.
@@ -331,7 +364,7 @@ Testupdate `Erase device` deaktiviert lassen.
 
 ## Offene Themen und sichere naechste Schritte
 
-- `1.35.3-soft-step-local` auf weiterer Hardware pruefen: Serial `IMU`, `STEPS`,
+- `1.36.0-gen3-local` auf weiterer Hardware pruefen: Serial `IMU`, `STEPS`,
   `WALK n`, Software-Schritte bei Screen-off und USB, Trail-Belohnungen,
   Wild-Shiny-Fang, Nacht-FOOD, Morgen-Overlay,
   Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.

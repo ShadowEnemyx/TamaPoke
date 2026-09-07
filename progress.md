@@ -6,11 +6,12 @@ Stand: 2026-09-07
 
 - Active branch: `local/full-gen3`; rollback tag: `local-before-gen3`.
 - The tested Gen‑3 feature commit `da8bfa8` is already on `fork/main`.
-- The hosted installer remains Gen 2 `1.35.3-soft-step` with #1–251.
-- No public Gen‑3 GitHub release or Pages switch has happened.
+- The hosted installer serves public Gen 3 `1.36.0` with #1–386.
+- GitHub Pages is switched to the Gen‑3 installer and the matching GitHub release
+  is published.
 - Local debug build: `1.36.0-gen3-local` with `TAMAPOKE_LOCAL_TEST`.
-- Prepared public release candidate: `1.36.0` with
-  `TAMAPOKE_GEN3_RELEASE`, without local debug commands.
+- Public release: `1.36.0` with `TAMAPOKE_GEN3_RELEASE`, without local debug
+  commands.
 
 ## Completed features
 
@@ -39,10 +40,10 @@ Stand: 2026-09-07
 
 ## Installer paths
 
-- `/web/index.html`: live/public Gen‑2 installer.
+- `/web/index.html`: live/public Gen‑3 installer.
 - `/web/dev.html`: local Gen‑3 debug installer with optional update/full choices.
-- `/web/release-gen3.html`: local public Gen‑3 preview with one mandatory full
-  sprite button and no debug controls.
+- `/web/release-gen3.html`: local reference copy with one mandatory full sprite
+  button and no debug controls.
 
 ## Historical milestones
 
@@ -52,11 +53,8 @@ Stand: 2026-09-07
 - `local-full-gen2-final-1.35.3` / `v1.35.3`: stable public Gen‑2 installer.
 - `local-before-gen3-bugfix-20260825`: snapshot before Gen‑3 hardening.
 
-## Remaining release work
+## Follow-up
 
-- Run all native, Web Serial and three build-profile checks.
-- Test the public Gen‑3 preview with preserved and fresh hardware/SD state.
-- Confirm screen-off walking, rewards, six languages, high-level evolutions,
-  round-screen touch edges and save retention.
-- Only after explicit approval: promote the preview to `web/index.html`, update
-  GitHub Pages, push the release commit and create the GitHub release.
+- Monitor real installs and keep the two-step sprite warning prominent.
+- Continue longer hardware soak tests for screen-off walking, rewards, six
+  languages, touch edges and save retention.

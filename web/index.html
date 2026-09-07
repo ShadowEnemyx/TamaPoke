@@ -6,225 +6,76 @@
 <title>TamaPoke · Installer</title>
 <style>
   :root { --bg:#f2efe1; --ink:#2a2a36; --accent:#4f93c4; --ok:#58b868; --bad:#e8503a; --track:#d8d2bd; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, sans-serif; background:var(--bg);
-         color:var(--ink); line-height:1.6; }
-  .wrap { max-width: 680px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-  h1 { font-size: 2rem; margin: 0 0 .25rem; }
-  h2 { font-size: 1.25rem; margin: 2.5rem 0 .5rem; }
-  .sub { color:#6b6b76; margin: 0 0 1.5rem; }
-  .step { background:#fff; border:1px solid var(--track); border-radius:14px; padding:1.25rem 1.5rem; margin: 1rem 0; }
-  .num { display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff;
-         align-items:center; justify-content:center; font-weight:600; margin-right:.5rem; font-size:.9rem; }
-  button { font: inherit; font-weight:500; padding:.6rem 1.2rem; border-radius:10px; border:1px solid var(--ink);
-           background:#fff; cursor:pointer; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; }
+  .wrap { max-width:680px; margin:0 auto; padding:2rem 1.25rem 4rem; }
+  h1 { font-size:2rem; margin:0 0 .25rem; }
+  h2 { font-size:1.25rem; margin:2.5rem 0 .5rem; }
+  .sub,.note { color:#6b6b76; }
+  .note { font-size:.9rem; }
+  .step { background:#fff; border:1px solid var(--track); border-radius:14px; padding:1.25rem 1.5rem; margin:1rem 0; }
+  .num { display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; font-weight:600; margin-right:.5rem; font-size:.9rem; }
+  .mandatory { background:#fff2ee; border:2px solid var(--bad); border-radius:14px; padding:1rem 1.2rem; margin:1rem 0 1.5rem; font-weight:600; }
+  .mandatory strong { color:var(--bad); }
+  .ver { display:inline-block; margin:.35rem 0 1.25rem; padding:.35rem .75rem; background:#fff; border:1px solid var(--track); border-radius:999px; font-size:.95rem; }
+  .row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; font-weight:600; padding:.65rem 1.2rem; border-radius:10px; border:1px solid var(--ink); background:#fff; cursor:pointer; }
   button:hover { background:var(--bg); }
   button:disabled { opacity:.5; cursor:default; }
   esp-web-install-button { display:inline-block; }
-  esp-web-install-button[install-unsupported] { display:none; }
-  .unsupported { display:none; color:var(--bad); font-weight:500; }
-  .row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
-  #log { font-family: ui-monospace, monospace; font-size:.85rem; background:#1b1b25; color:#d8dcf0;
-         border-radius:10px; padding:.75rem 1rem; margin-top:1rem; max-height:220px; overflow:auto; white-space:pre-wrap; display:none; }
+  esp-web-install-button[install-unsupported],.unsupported { display:none; }
+  .unsupported { color:var(--bad); font-weight:600; }
+  #log { font-family:ui-monospace,monospace; font-size:.85rem; background:#1b1b25; color:#d8dcf0; border-radius:10px; padding:.75rem 1rem; margin-top:1rem; max-height:240px; overflow:auto; white-space:pre-wrap; display:none; }
   .bar { height:10px; background:var(--track); border-radius:5px; overflow:hidden; margin-top:.75rem; display:none; }
-  .bar > div { height:100%; width:0; background:var(--ok); transition: width .15s; }
-  code { background:#0001; padding:.1em .4em; border-radius:5px; }
+  .bar>div { height:100%; width:0; background:var(--ok); transition:width .15s; }
   a { color:var(--accent); }
-  .note { font-size:.9rem; color:#6b6b76; }
-  .ver { display:inline-block; margin: .35rem 0 1.25rem; padding:.35rem .75rem;
-         background:#fff; border:1px solid var(--track); border-radius:999px;
-         font-size:.95rem; color:var(--ink); }
-  .ver b { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">This flash: <b>1.35.3-soft-step</b> · 24 Aug 2026</p>
-  <p class="sub">A 251-Pokémon tamagotchi for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
-     Install it from your browser — no ZIP download, no release files, no Arduino,
-     no manual firmware files.</p>
+  <p class="ver">Firmware: <b>1.36.0</b> · Gen 1–3</p>
+  <p class="sub">All 386 Pokémon from Kanto, Johto and Hoenn for the Waveshare ESP32-S3-Touch-AMOLED-1.75.</p>
 
-  <p class="unsupported" id="unsupported">
-    ⚠️ Your browser doesn't support Web Serial. Use <b>Chrome</b> or <b>Edge</b> on a computer.
-  </p>
+  <div class="mandatory"><strong>⚠️ TWO STEPS ARE REQUIRED.</strong><br>
+    Flashing the firmware alone is incomplete. After step 1, reconnect the board
+    and complete step 2 to copy all 386 Pokémon sprites to the microSD.</div>
 
-  <h2><span class="num">1</span>Flash the firmware</h2>
+  <p class="unsupported" id="unsupported">⚠️ Use desktop Chrome or Edge. This browser does not support Web Serial.</p>
+
+  <h2><span class="num">1</span>Flash firmware 1.36.0</h2>
   <div class="step">
-    <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.35.3-soft-step</b> from 24 Aug 2026.
-       The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest.json?v=1.35.3-soft-step">
-      <button slot="activate">⚡ Install TamaPoke 1.35.3</button>
+    <p>Connect the board by USB, press install and select its serial port.</p>
+    <esp-web-install-button manifest="manifest.json?v=1.36.0">
+      <button slot="activate">⚡ Install TamaPoke 1.36.0</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
-      <span slot="not-allowed">Needs HTTPS.</span>
+      <span slot="not-allowed">Needs HTTPS or localhost.</span>
     </esp-web-install-button>
-    <p class="note">🔄 <b>Updating to a new version? Install <u>without</u> erasing</b> to keep
-       your Pokémon — updates flash only the firmware parts and leave the save area untouched.
-       Only a full <b>Erase</b> wipes your saved pet. First time on a fresh board? You can erase,
-       no problem.</p>
+    <p class="note"><b>Updating?</b> Leave <b>Erase device</b> unchecked to keep
+      your Pokémon and progress. Erase only a completely new board or a save you
+      intentionally want to delete.</p>
   </div>
 
-  <h2><span class="num">2</span>Load the sprites onto the microSD</h2>
+  <h2><span class="num">2</span>Install all 386 sprites — required</h2>
   <div class="step">
-    <p>Put a microSD into the board (it formats itself). Press <b>Connect board</b>
-       and then <b>Load sprites</b>: they download and copy over USB automatically
-       (~40 MB, a few minutes). Don't remove the card.</p>
-    <p class="note">Close the step-1 install tab first (only one program can use
-       the port at a time).</p>
+    <p>Insert a microSD card. Close the flashing dialog, connect the board again,
+      then press the single install button. It safely sends the complete Kanto/
+      Johto package first and the Hoenn package second.</p>
     <div class="row">
       <button id="connect">🔌 Connect board</button>
-      <button id="auto" disabled>⬇️ Load sprites</button>
+      <button id="full" disabled>⬇️ Install all 386 sprites</button>
     </div>
-    <p class="note">Have your own <code>.bin</code> files? <label style="cursor:pointer;text-decoration:underline">pick them manually<input id="files" type="file" accept=".bin" multiple disabled hidden></label></p>
-    <p class="note">🎨 Want to make your own sprites? See <a href="https://github.com/ShadowEnemyx/TamaPoke#generate-and-load-the-sprites-yourself" target="_blank">how to generate &amp; load them</a> in the repo.</p>
+    <p class="note">Do not unplug the board or remove the microSD during transfer.
+      Existing Gen‑2 cards may use the same full process safely.</p>
     <div class="bar" id="bar"><div></div></div>
     <pre id="log"></pre>
   </div>
 
-  <h2>How to play</h2>
-  <p>Care for your egg until it hatches, feed it, play, train it and complete them
-     all. Tap the creature to pet it; swipe to open the Pokédex (sideways), the
-     stat card (up) or set the clock (down); the physical PWR button turns the
-     screen off (short press) or everything off (long press).
-     More in the <a href="https://github.com/ShadowEnemyx/TamaPoke" target="_blank">repository</a>.</p>
-
-  <p class="note">Sprites from <a href="https://github.com/PMDCollab/SpriteCollab" target="_blank">PMD SpriteCollab</a> (CC BY-NC).
-     Pokémon is a ™ of Nintendo / Game Freak. Non-commercial project.</p>
+  <p class="note">Sprites: <a href="https://github.com/PMDCollab/SpriteCollab">PMD SpriteCollab</a>
+    (CC BY-NC). Pokémon © Nintendo / Game Freak. Unofficial non-commercial fan project.</p>
 </div>
 
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
-<script>
-function formatReleased(iso) {
-  const d = new Date(iso + 'T00:00:00Z');
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-}
-
-fetch('manifest.json?v=1.35.3-soft-step')
-  .then((r) => r.ok ? r.json() : null)
-  .then((m) => {
-    if (!m || !m.version) return;
-    const when = m.released ? formatReleased(m.released) : '';
-    const label = when ? `${m.version} · ${when}` : m.version;
-    const pill = document.getElementById('fw-ver');
-    if (pill) pill.innerHTML = 'This flash: <b>' + m.version + '</b>' + (when ? ' · ' + when : '');
-    const step = document.getElementById('fw-step');
-    if (step) step.innerHTML = 'Installs firmware <b>' + m.version + '</b>' +
-      (when ? ' from ' + when : '') +
-      '. The same version is shown on the board in Settings after flashing.';
-  })
-  .catch(() => {});
-
-const log = (m) => { const el = document.getElementById('log'); el.style.display='block';
-  el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
-const supported = 'serial' in navigator;
-if (!supported) { document.getElementById('unsupported').style.display='block';
-  document.getElementById('connect').disabled = true; }
-
-let port, reader, writer, lineBuf = '';
-
-async function readLine(timeoutMs = 6000) {
-  const deadline = Date.now() + timeoutMs;
-  while (true) {
-    const nl = lineBuf.indexOf('\n');
-    if (nl >= 0) { const l = lineBuf.slice(0, nl).trim(); lineBuf = lineBuf.slice(nl + 1); return l; }
-    if (Date.now() > deadline) return null;
-    const { value, done } = await reader.read();
-    if (done) return null;
-    lineBuf += new TextDecoder().decode(value);
-  }
-}
-
-async function waitFor(token, timeoutMs = 6000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const l = await readLine(deadline - Date.now());
-    if (l === null) return false;
-    if (l === token) return true;
-    if (l === 'ERR') return false;
-  }
-  return false;
-}
-
-const enc = new TextEncoder();
-
-// sends one file to the board with the PUT protocol (name includes the mons/ prefix)
-async function sendOne(name, data) {
-  await writer.write(enc.encode(`PUT ${name} ${data.length}\n`));
-  if (!await waitFor('OK')) return false;
-  for (let i = 0; i < data.length; i += 2048) {
-    await writer.write(data.slice(i, i + 2048));
-    if (!await waitFor('#')) return false;
-  }
-  return await waitFor('DONE', 30000);
-}
-
-// splits the sprites.pak bundle (TPAK) into its individual files
-function parsePak(buf) {
-  const dv = new DataView(buf), td = new TextDecoder();
-  if (td.decode(new Uint8Array(buf, 0, 4)) !== 'TPAK') throw new Error('invalid bundle');
-  const count = dv.getUint16(4, true);
-  let off = 6; const items = [];
-  for (let i = 0; i < count; i++) {
-    const nl = dv.getUint8(off); off += 1;
-    const name = td.decode(new Uint8Array(buf, off, nl)); off += nl;
-    const size = dv.getUint32(off, true); off += 4;
-    items.push({ name, size });
-  }
-  let pos = off;
-  for (const it of items) { it.data = new Uint8Array(buf, pos, it.size); pos += it.size; }
-  return items;
-}
-
-async function sendAll(items) {
-  const bar = document.getElementById('bar'); bar.style.display = 'block';
-  const fill = bar.firstElementChild;
-  let done = 0, fail = 0;
-  for (const it of items) {
-    if (!await sendOne(it.name, it.data)) { log('   failed ' + it.name); fail++; }
-    done++;
-    fill.style.width = (done / items.length * 100) + '%';
-  }
-  log(`Done (${done - fail}/${items.length}). Restart the board (PWR button).`);
-}
-
-document.getElementById('connect').onclick = async () => {
-  try {
-    port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 115200 });
-    reader = port.readable.getReader();
-    writer = port.writable.getWriter();
-    lineBuf = '';
-    log('Connected. Press "Load sprites".');
-    document.getElementById('auto').disabled = false;
-    document.getElementById('files').disabled = false;
-    document.getElementById('connect').disabled = true;
-  } catch (e) { log('Could not connect: ' + e.message); }
-};
-
-document.getElementById('auto').onclick = async () => {
-  if (!writer) { log('Connect the board first.'); return; }
-  document.getElementById('auto').disabled = true;
-  log('Downloading sprite bundle (~58 MB)...');
-  let items;
-  try {
-    // sprites.pak servido desde el mismo origen (GitHub Pages) -> sin lios de CORS
-    const resp = await fetch('sprites.pak');
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    items = parsePak(await resp.arrayBuffer());
-  } catch (e) { log('Could not download sprites.pak: ' + e.message); return; }
-  log(`${items.length} sprites. Sending over USB...`);
-  await sendAll(items);
-};
-
-document.getElementById('files').onchange = async (ev) => {
-  const files = [...ev.target.files];
-  const items = [];
-  for (const f of files) items.push({ name: 'mons/' + f.name, data: new Uint8Array(await f.arrayBuffer()) });
-  log(`${items.length} files. Sending...`);
-  await sendAll(items);
-};
-</script>
+<script src="installer-gen3.js?v=1.36.0"></script>
 </body>
 </html>

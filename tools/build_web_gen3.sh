@@ -48,6 +48,10 @@ python3 tools/validate_web_build.py \
   --pak web/sprites.pak --manifest web/manifest-gen3.json \
   --expected-version "$VERSION" --expected-dex 386 --expected-files 503 --expected-thumbs 251
 python3 tools/validate_web_build.py \
+  --dex-header dex.h --app "$STAGE/firmware/tamapoke-$VERSION-app.bin" \
+  --pak web/sprites.pak --manifest web/manifest.json \
+  --expected-version "$VERSION" --expected-dex 386 --expected-files 503 --expected-thumbs 251
+python3 tools/validate_web_build.py \
   --pak "$STAGE/sprites-gen3-update.pak" --expected-files 271 --expected-thumbs 386
 
 # Debug-only commands must remain behind TAMAPOKE_LOCAL_TEST and must not be

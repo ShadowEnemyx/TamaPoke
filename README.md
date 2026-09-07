@@ -3,8 +3,8 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://shadowenemyx.github.io/TamaPoke/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Public firmware](https://img.shields.io/badge/public-v1.35.3--soft--step-8A2BE2)
-![Gen 3 candidate](https://img.shields.io/badge/Gen%203%20RC-v1.36.0-blue)
+![Firmware](https://img.shields.io/badge/firmware-v1.36.0-4F93C4)
+![Pokédex](https://img.shields.io/badge/Pok%C3%A9mon-386-E8503A)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 
 TamaPoke is a Pokémon-inspired virtual pet for the
@@ -17,8 +17,8 @@ TamaPoke is a Pokémon-inspired virtual pet for the
 
 ### [Open the ShadowEnemyx web installer](https://shadowenemyx.github.io/TamaPoke/web/)
 
-The hosted installer currently serves the stable Gen‑2 firmware
-`1.35.3-soft-step` with Pokémon #1–251. Use desktop **Chrome or Edge**:
+The hosted installer serves firmware `1.36.0` with all 386 Pokémon from
+Generations 1–3. Use desktop **Chrome or Edge**:
 
 1. Connect the Waveshare board by USB and install the firmware.
 2. When updating, leave **Erase device unchecked** to preserve the save.
@@ -26,15 +26,11 @@ The hosted installer currently serves the stable Gen‑2 firmware
 
 No ZIP, Arduino project or manual `.bin` download is required.
 
-## Gen 3 status
+## Gen 3
 
-The repository already contains the tested Gen‑3 code and assets for all 386
-Pokémon, but the hosted installer has **not** been switched to Gen 3 yet.
-
-- Local debug build: `1.36.0-gen3-local` through `web/dev.html`.
-- Public release candidate: `1.36.0` through `web/release-gen3.html`.
-- The release candidate contains no local Pokémon/evolution/battle test commands.
-- Neither page replaces the hosted Gen‑2 installer until Gen 3 is explicitly approved.
+Gen 3 is now public. The hosted installer uses the tested, debug-free `1.36.0`
+firmware. The local `dev.html` page remains available only for development and
+hardware diagnostics.
 
 > [!WARNING]
 > **A Gen‑3 installation always has two required steps.** Flashing firmware alone
@@ -108,9 +104,9 @@ Validated toolchain: ESP32 Arduino core `3.3.10`, GFX Library for Arduino
 Build and validate without replacing installer artifacts:
 
 ```bash
-bash tools/build_web.sh --check         # pinned public Gen 2, 251 Pokémon
+bash tools/build_web.sh --check         # current public Gen 3, 386 Pokémon
 bash tools/build_web_local.sh --check   # Gen 3 debug build, 386 Pokémon
-bash tools/build_web_gen3.sh --check    # public Gen 3 RC, no debug commands
+bash tools/build_web_gen2_legacy.sh --check # pinned historical Gen 2 check
 ```
 
 Build the local artifacts, serve the folder and open the required page:
@@ -120,9 +116,9 @@ bash tools/build_web_local.sh           # or: bash tools/build_web_gen3.sh
 python3 -m http.server 8000 --directory web
 ```
 
-- `http://127.0.0.1:8000/` — unchanged public-like Gen‑2 installer
+- `http://127.0.0.1:8000/` — current public Gen‑3 installer
 - `http://127.0.0.1:8000/dev.html` — Gen‑3 hardware/debug installer
-- `http://127.0.0.1:8000/release-gen3.html` — public Gen‑3 release preview
+- `http://127.0.0.1:8000/release-gen3.html` — local release reference page
 
 Never enable **Erase device** for an update whose save should be retained.
 
@@ -151,7 +147,7 @@ cd tests && make clean && make test
 cd ..
 bash tools/build_web.sh --check
 bash tools/build_web_local.sh --check
-bash tools/build_web_gen3.sh --check
+bash tools/build_web_gen2_legacy.sh --check
 git diff --check
 ```
 

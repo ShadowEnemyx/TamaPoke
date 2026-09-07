@@ -11,7 +11,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
 - Lokaler Gen-3/Wasserzeichen-/Schritt-Test: `1.36.0-gen3-local` (ueber `TAMAPOKE_LOCAL_TEST`)
-- Vorbereiteter oeffentlicher Gen-3-Kandidat: `1.36.0` (ueber
+- Oeffentlicher Gen-3-Release: `1.36.0` (ueber
   `TAMAPOKE_GEN3_RELEASE`, ohne lokale Debugbefehle)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
@@ -37,8 +37,8 @@ erwuenscht.
 
 - Branch `local/full-gen3`; Tag `local-before-gen3` erlaubt die schnelle
   Rueckkehr zum funktionierenden Gen-2-Stand. Der getestete Gen-3-Featurestand
-  `da8bfa8` liegt bereits auf `fork/main`; der gehostete Installer und ein
-  GitHub-Release wurden noch nicht auf Gen 3 umgestellt.
+  `da8bfa8` liegt bereits auf `fork/main`. Der gehostete Installer und der
+  GitHub-Release verwenden den debugfreien Gen-3-Stand `1.36.0`.
 - Lokaler Dex #1–386 mit sechs Sprachen, uint16-Dexpfaden, Gen-3-Stats/Typen,
   Evolutionsregeln und dem 3-von-4-Stats-Gate ueber 40 Prozent.
 - Lokaler Erststart: Region Kanto/Johto/Hoenn waehlen, danach einen von drei
@@ -56,18 +56,18 @@ erwuenscht.
   Evolutionsdiagnosen laufen dort ueber Klicks; kein `screen`-Terminal noetig.
 - Build mit `bash tools/build_web_local.sh`; die vier lokalen Firmware-Parts
   liegen danach unter `web/firmware/tamapoke-1.36.0-gen3-local-*.bin`.
-- Der oeffentliche, debugfreie Release-Kandidat wird mit
-  `bash tools/build_web_gen3.sh` gebaut und ueber `web/release-gen3.html` lokal
-  geprueft. Diese Vorschau ersetzt `web/index.html` nicht.
-- Bei jeder spaeteren Gen-3-Veroeffentlichung muessen README, Installer und
-  Release-Text deutlich sagen: Firmware-Flash allein reicht nicht; danach ist
+- Der oeffentliche, debugfreie Release wird mit `bash tools/build_web.sh`
+  gebaut. `bash tools/build_web_gen3.sh` ist der zugrunde liegende Gen-3-Build;
+  `web/release-gen3.html` bleibt eine lokale Referenzseite.
+- README, Installer und Release-Text sagen deutlich: Firmware-Flash allein
+  reicht nicht; danach ist
   Schritt 2 fuer die microSD-Sprites Pflicht. Bei neuer/leerer/unklarer Karte
   immer das volle 386er-Paket statt nur des Gen-3-Updates verwenden.
 
 ## Aktueller Arbeitsbaum
 
-Der oeffentliche Installer zeigt weiterhin auf den stabilen `1.35.3-soft-step`-Build.
-Fuer Hardwaretests existieren zusaetzlich `web/dev.html` und
+Der oeffentliche Installer zeigt auf den debugfreien Gen-3-Build `1.36.0`.
+Fuer Hardwaretests existieren weiterhin `web/dev.html` und
 `web/manifest-local.json`; diese Debug-Dateien sind bewusst nicht Teil des
 oeffentlichen Installationsflusses.
 
@@ -217,8 +217,7 @@ werden; Desktop-Builds koennen den ES8311-/Lautsprecherweg nicht ersetzen.
 Die folgenden Eintraege dokumentieren den damaligen Entwicklungsstand. Nicht
 jede Testversion wurde veroeffentlicht; Angaben zu frueheren Branches sind keine
 Beschreibung des aktuellen Arbeitsbaums. `1.36.0-gen3-local` bleibt der lokale
-Debugstand; `1.36.0` ist als debugfreier Release-Kandidat vorbereitet, aber noch
-nicht im gehosteten Installer oder als GitHub-Release veroeffentlicht.
+Debugstand; `1.36.0` ist der veroeffentlichte debugfreie Gen-3-Release.
 
 1. `1.29.3-reliability`
    - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
@@ -314,15 +313,16 @@ nicht im gehosteten Installer oder als GitHub-Release veroeffentlicht.
 - `time_utils.h`: rollover-sichere `deadlineActive`, `deadlineReached` und
   `deadlineRemaining` fuer `millis()`-Timer.
 - `tests/pet_tests.cpp` und `tests/battle_tests.cpp`: native Regressionstests.
-- `tools/build_web.sh`: erzeugt die vier separaten Installer-Binaries.
+- `tools/build_web.sh`: erzeugt die vier separaten oeffentlichen Gen-3-
+  Installer-Binaries.
 - `tools/build_web_gen3.sh`: erzeugt und validiert den debugfreien
-  `1.36.0`-Release-Kandidaten, ohne den Gen-2-Installer zu ersetzen.
+  `1.36.0`-Release ohne den lokalen Debugbuild zu verwenden.
 - `web/manifest.json` und `web/index.html`: Web-Installer. Die Parts werden
   getrennt geflasht, damit NVS/Save bei Updates erhalten bleibt.
 - `web/dev.html` und `web/manifest-local.json`: lokaler Testinstaller, nicht fuer
   den oeffentlichen GitHub-Pages-Flow.
 - `web/release-gen3.html` und `web/manifest-gen3.json`: lokale Vorschau des
-  spaeteren oeffentlichen Gen-3-Installers ohne Testknoepfe.
+  oeffentlichen Gen-3-Installers ohne Testknoepfe.
 
 ## Testen und lokales Flashen
 
@@ -337,7 +337,7 @@ python3 -m http.server 8000 --directory web
 Danach auf dem Mac Chrome oder Edge oeffnen:
 
 ```text
-http://127.0.0.1:8000/?v=1.35.3-soft-step
+http://127.0.0.1:8000/?v=1.36.0
 ```
 
 Waveshare per USB verbinden und im Installer **Erase device deaktiviert lassen**.
@@ -345,10 +345,10 @@ Der lokale Server muss waehrend des Flashens weiterlaufen. Der aktuelle
 Web-Installer erwartet diese vier Dateien:
 
 ```text
-web/firmware/tamapoke-1.35.3-soft-step-bootloader.bin
-web/firmware/tamapoke-1.35.3-soft-step-partitions.bin
-web/firmware/tamapoke-1.35.3-soft-step-boot_app0.bin
-web/firmware/tamapoke-1.35.3-soft-step-app.bin
+web/firmware/tamapoke-1.36.0-bootloader.bin
+web/firmware/tamapoke-1.36.0-partitions.bin
+web/firmware/tamapoke-1.36.0-boot_app0.bin
+web/firmware/tamapoke-1.36.0-app.bin
 ```
 
 ### Lokaler Testinstaller
@@ -372,7 +372,7 @@ python3 -m http.server 8000 --directory web
 Im Browser `http://127.0.0.1:8000/dev.html` oeffnen. Auch beim lokalen
 Testupdate `Erase device` deaktiviert lassen.
 
-### Oeffentliche Gen-3-Release-Vorschau
+### Oeffentliche Gen-3-Release-Referenz
 
 ```bash
 bash tools/build_web_gen3.sh
@@ -381,7 +381,7 @@ python3 -m http.server 8000 --directory web
 
 Im Browser `http://127.0.0.1:8000/release-gen3.html` oeffnen. Diese Seite hat
 keine Debugbefehle und bietet genau einen verpflichtenden Komplett-Spriteknopf.
-Sie veraendert den weiterhin oeffentlichen Gen-2-Installer nicht.
+Die oeffentliche Seite `web/index.html` hat denselben normalen Ablauf.
 
 ## Verifikation vor einer eventuellen Veroeffentlichung
 

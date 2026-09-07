@@ -689,12 +689,18 @@ void handleSerial() {
     uint8_t backup[Pet::BACKUP_MAX_BYTES];
     size_t size = pet.exportBackup(backup, sizeof(backup));
     if (!size) { Serial.println("ERR"); return; }
+    // Normal game logs must never block when no terminal is open, hence setup
+    // uses a zero TX timeout. A backup is requested by a connected browser,
+    // so temporarily wait for its complete (hex) response instead of dropping it.
+    Serial.setTxTimeoutMs(1500);
     Serial.printf("SAVE %u\n", (unsigned)size);
     Serial.print("SAVEHEX ");
     static const char HEX_CHARS[] = "0123456789ABCDEF";
     for (size_t i = 0; i < size; ++i) { Serial.print(HEX_CHARS[backup[i] >> 4]); Serial.print(HEX_CHARS[backup[i] & 15]); }
     Serial.println();
     Serial.println("DONE");
+    Serial.flush();
+    Serial.setTxTimeoutMs(0);
     return;
   }
   if (line.startsWith("SAVEPUT ")) {

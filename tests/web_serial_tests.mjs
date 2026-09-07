@@ -132,7 +132,7 @@ assert(releaseScript.includes("SAVEGET\\n") && releaseScript.includes('SAVEPUT $
        'save backup must use explicit export and checked restore commands');
 assert(releaseScript.includes('Safety backup downloaded') && releaseScript.includes('Restore this backup?'),
        'restore must create a safety backup and require confirmation');
-assert(releaseHtml.includes('manifest-gen3.json?v=1.36.0'),
+assert(releaseHtml.includes('manifest-gen3.json?v=1.36.1'),
        'release preview must use the Gen-3 release manifest');
 assert.equal((releaseHtml.match(/id="full"/g) || []).length, 1,
              'release preview must expose exactly one sprite install button');

@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-VERSION="1.36.0"
+VERSION="1.36.1"
 CHECK_ONLY=0
 
 if [[ ${1:-} == "--check" ]]; then
@@ -21,7 +21,7 @@ if ! grep -Eq '^#define DEX_COUNT 386$' dex.h; then
   echo "Refusing Gen-3 release build: dex.h must contain exactly 386 species." >&2
   exit 1
 fi
-if ! grep -q '#define FW_VERSION "1.36.0"' TamaPoke.ino; then
+if ! grep -q '#define FW_VERSION "1.36.1"' TamaPoke.ino; then
   echo "Refusing Gen-3 release build: firmware version does not match $VERSION." >&2
   exit 1
 fi

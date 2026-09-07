@@ -32,7 +32,7 @@ python3 "$ROOT/tools/validate_web_build.py" \
   --app "$STAGE/TamaPoke/web/firmware/tamapoke-$VERSION-app.bin" \
   --pak "$STAGE/TamaPoke/web/sprites.pak" \
   --manifest "$ROOT/web/manifest.json" \
-  --expected-version "$VERSION" --expected-dex 251 --expected-files 503
+  --expected-version "$VERSION" --expected-dex 251 --expected-files 503 --expected-thumbs 251
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
   echo "CHECK OK: public installer files were not changed."

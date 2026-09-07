@@ -20,6 +20,11 @@ python3 tools/make_thumbs.py  # -> tools/sdcard/mons/thumbs.bin
 python3 tools/send_sd.py      # envia todo a la SD de la placa por USB
 ```
 
+Para el instalador Gen 3 no existe un unico `sprites-gen3-full.pak`: el flujo
+completo envia primero `web/sprites.pak` (#1–251) y despues
+`web/sprites-gen3-update.pak` (#252–386 y el indice de 386 miniaturas). Asi
+ningun archivo alojado en GitHub supera el limite de 100 MB.
+
 (`s` = variante shiny. `pack_pmd.py` acepta números de Pokédex sueltos,
 p. ej. `python3 tools/pack_pmd.py 7 25`.)
 

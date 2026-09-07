@@ -1,45 +1,62 @@
-Original prompt: Vollständigen Gen-2-Plan lokal umsetzen und die Evolutionsvoraussetzung auf 3 von 4 Stats über 40% ändern.
+# TamaPoke development progress
 
-## Aktueller lokaler Gen-3-Kandidat (2026-08-25)
+Stand: 2026-09-07
 
-- Branch: `local/full-gen3`; Rücksprung-Tag: `local-before-gen3`.
-- Öffentlicher Installer und öffentliche Firmware bleiben unverändert bei
-  `1.35.3-soft-step` und #1–251.
-- Lokaler Build: `1.36.0-gen3-local` mit `TAMAPOKE_LOCAL_TEST`, sechs Sprachen
-  und Dex #1–386.
-- Gen-3 #252–386 enthält lokalisierte Namen, Typen, Basiswerte, seltene/
-  legendäre Kennzeichnung und Spezialentwicklungen (Bond, Stat-Gate,
-  Tageszeit sowie TamaPoke-freundliche Levelpfade).
-- Starterwahl im lokalen Build: zuerst Kanto, Johto oder Hoenn, danach einer
-  der drei Regions-Starter. Bestehende Spielstände bleiben unangetastet.
-- 270 neue SpriteCollab-Dateien (Normal + Shiny) und 386 Miniaturen sind als
-  `web/sprites-gen3-update.pak` (ca. 38 MB) sowie im lokalen vollständigen
-  `web/sprites-gen3-full.pak` (ca. 105 MB) gepackt. Das öffentliche
-  `web/sprites.pak` bleibt das stabile #1–251-Paket.
-- Lokale Browserseite: `web/dev.html` + `web/manifest-local.json`; kein Push,
-  Release oder GitHub-Pages-Update erfolgt.
+## Current state
 
-## Fortschritt
+- Active branch: `local/full-gen3`; rollback tag: `local-before-gen3`.
+- The tested Gen‑3 feature commit `da8bfa8` is already on `fork/main`.
+- The hosted installer remains Gen 2 `1.35.3-soft-step` with #1–251.
+- No public Gen‑3 GitHub release or Pages switch has happened.
+- Local debug build: `1.36.0-gen3-local` with `TAMAPOKE_LOCAL_TEST`.
+- Prepared public release candidate: `1.36.0` with
+  `TAMAPOKE_GEN3_RELEASE`, without local debug commands.
 
-- Gen-2-Dex #161–251, lokalisierte Namen, Werte und Evolutionsregeln integriert.
-- Eevee-, Baby-, Tyrogue- und Gen-2-Branch-Regeln inklusive 3/4-Stats-Gate
-  (strictly >40) ergänzt; insgesamt 122 Regeln.
-- SpriteCollab-Normal-/Shiny-Pakete und Miniaturen für #161–251 erzeugt.
-- Lokale Firmware mit `TAMAPOKE_LOCAL_TEST` kompiliert; natives Testprogramm besteht.
-- Lokale Testseite enthält Auswahl für alle 251 Pokémon, Evolutionsziel-Auswahl und Paket-Buttons.
-- Lokaler Build meldet `1.35.3-soft-step-local`; der öffentliche Installer wird als
-  `1.35.3-soft-step` ohne Debug-Befehle gebaut.
-- Persistenter Schrittzähler mit Tages-/Gesamtwert, 500/2.000/5.000-Trailbelohnungen,
-  Trail-Rängen sowie verbessertem Wild-Shiny- und Fangbonus ergänzt.
-- IMU-Polling korrigiert: Die Software-Schritterkennung filtert Beschleunigungs-
-  impulse und zählt nach zwei rhythmischen Schritten; USB blockiert das Zählen
-  nicht mehr. Die lokale Seite bietet dafür `IMU`- und `STATS`-Diagnosebuttons.
+## Completed features
 
-## Abschluss
+- Gen‑2 and Gen‑3 Dex data through #386, six languages, stats, types, rarity
+  data, region/starter selection and evolution rules.
+- Evolution requires strictly three of four care values above 40 and supports
+  branch, bond, day/night and stat conditions.
+- All normal and Shiny SpriteCollab files through #386 plus 386 thumbnails.
+- Moving `@SE` attribution watermark.
+- Persistent software step counter, top-left HUD and Steps/Trail card.
+- Daily rewards at 500/2,000/5,000 steps, lifetime trail ranks, walking
+  JOY/BOND rewards and capped Shiny/catch bonuses.
+- Local browser controls for Pokémon, evolutions, battles and IMU/step
+  diagnostics; no terminal is needed for the debug workflow.
+- Gen‑3 build hardening: target-level evolution setup, Web Serial timeout and
+  reconnect handling, Box list reuse and complete thumbnail validation.
 
-- Browser-Testseite per Syntax-/Playwright-Check ohne Console-Fehler geprüft.
-- Datenpakete, Firmware-Artefakte und Git-Diff geprüft; lokaler Commit erstellt.
-- Rücksprung: Tag `local-before-full-gen2`; Schritt-Rücksprung: `local-before-steps`.
-- Fertiger Schrittstand: `1.35.3-soft-step-local`; der öffentliche Build
-  `1.35.3-soft-step` und die aktualisierte README sind auf `fork/main`.
-- Final markiert auf Branch `local/full-gen2`: Tag `local-full-gen2-final`.
+## Sprite delivery
+
+- `web/sprites.pak`: 503 entries for #1–251 including a 251-entry thumbnail file.
+- `web/sprites-gen3-update.pak`: 271 entries for #252–386 including the complete
+  386-entry thumbnail file.
+- A complete Gen‑3 installation sends those two packages sequentially.
+- `sprites-gen3-full.pak` was removed because it exceeded GitHub's 100-MB file
+  limit and must not be referenced by current instructions.
+
+## Installer paths
+
+- `/web/index.html`: live/public Gen‑2 installer.
+- `/web/dev.html`: local Gen‑3 debug installer with optional update/full choices.
+- `/web/release-gen3.html`: local public Gen‑3 preview with one mandatory full
+  sprite button and no debug controls.
+
+## Historical milestones
+
+- `local-before-full-gen2`: rollback before the full Gen‑2 work.
+- `local-before-steps`: rollback before the walking system.
+- `local-full-gen2-final`: completed Gen‑2 development snapshot.
+- `local-full-gen2-final-1.35.3` / `v1.35.3`: stable public Gen‑2 installer.
+- `local-before-gen3-bugfix-20260825`: snapshot before Gen‑3 hardening.
+
+## Remaining release work
+
+- Run all native, Web Serial and three build-profile checks.
+- Test the public Gen‑3 preview with preserved and fresh hardware/SD state.
+- Confirm screen-off walking, rewards, six languages, high-level evolutions,
+  round-screen touch edges and save retention.
+- Only after explicit approval: promote the preview to `web/index.html`, update
+  GitHub Pages, push the release commit and create the GitHub release.

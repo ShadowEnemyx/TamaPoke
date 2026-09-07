@@ -30,11 +30,16 @@
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#if DEX_COUNT > 251 && !defined(TAMAPOKE_LOCAL_TEST)
-#error "Gen-3 source must be built with TAMAPOKE_LOCAL_TEST; use tools/build_web_local.sh"
+#if defined(TAMAPOKE_LOCAL_TEST) && defined(TAMAPOKE_GEN3_RELEASE)
+#error "TAMAPOKE_LOCAL_TEST and TAMAPOKE_GEN3_RELEASE are mutually exclusive"
+#endif
+#if DEX_COUNT > 251 && !defined(TAMAPOKE_LOCAL_TEST) && !defined(TAMAPOKE_GEN3_RELEASE)
+#error "Gen-3 source requires an explicit local-test or release build profile"
 #endif
 #ifdef TAMAPOKE_LOCAL_TEST
 #define FW_VERSION "1.36.0-gen3-local"
+#elif defined(TAMAPOKE_GEN3_RELEASE)
+#define FW_VERSION "1.36.0"
 #else
 #define FW_VERSION "1.35.3-soft-step"
 #endif

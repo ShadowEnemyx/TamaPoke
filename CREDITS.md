@@ -12,7 +12,7 @@ This project is not affiliated with or endorsed by any of those companies.
 | Resource | Source | Use in the project |
 |---|---|---|
 | **All sprites** (idle, walk, sleep, eat, hurt, attack…) | [PMD Sprite Collaboration (PMDCollab/SpriteCollab)](https://github.com/PMDCollab/SpriteCollab) | Mystery-Dungeon-style animated sprites used everywhere: main screen, stat card, minigame, and the Pokédex grid + detail view |
-| **Gen 1 base stats** | [PokéAPI](https://pokeapi.co) | Real ATK/DEF/SPD/HP for each species |
+| **Pokémon data #1–386** | [PokéAPI](https://pokeapi.co) | Base HP/ATK/DEF/SPD, types and localized species names used by the generated Dex |
 
 The **SpriteCollab** sprites are the work of its community of artists under their
 own terms (Creative Commons Attribution-NonCommercial 4.0). Per-species/per-author

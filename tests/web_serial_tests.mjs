@@ -122,4 +122,71 @@ assert.equal(result.writeReaderCancelled, true);
 assert.equal(result.writeAborted, true);
 assert.equal(result.writePortClosed, true);
 assert.equal(result.writeDisconnected, true);
+
+const releaseHtml = fs.readFileSync(new URL('../web/release-gen3.html', import.meta.url), 'utf8');
+const releaseScript = fs.readFileSync(new URL('../web/installer-gen3.js', import.meta.url), 'utf8');
+assert(releaseHtml.includes('manifest-gen3.json?v=1.36.0'),
+       'release preview must use the Gen-3 release manifest');
+assert.equal((releaseHtml.match(/id="full"/g) || []).length, 1,
+             'release preview must expose exactly one sprite install button');
+assert(!releaseHtml.includes('data-test-command') && !releaseScript.match(/TESTMON|TESTEVO|CAUGHT|BATTLE/),
+       'release preview must not expose local debug commands');
+assert(releaseScript.includes("loadBundles(['sprites.pak', 'sprites-gen3-update.pak'])"),
+       'release preview must install the base and Gen-3 bundles in sequence');
+assert(releaseScript.includes("'sprites.pak': 503") &&
+       releaseScript.includes("'sprites-gen3-update.pak': 271"),
+       'release preview must reject bundles with unexpected entry counts');
+
+const releaseElements = new Map();
+const releaseDocument = {
+  getElementById(id) {
+    if (!releaseElements.has(id)) releaseElements.set(id, new FakeElement());
+    return releaseElements.get(id);
+  }
+};
+const releaseContext = vm.createContext({
+  console,
+  document: releaseDocument,
+  navigator: { serial: {} },
+  TextDecoder,
+  TextEncoder,
+  DataView,
+  Uint8Array,
+  setTimeout,
+  clearTimeout,
+  fetch: () => Promise.reject(new Error('network disabled in unit test'))
+});
+vm.runInContext(releaseScript + `
+globalThis.releaseTransportTest = (async () => {
+  let readerCancelled = false;
+  let writerAborted = false;
+  let portClosed = false;
+  reader = {
+    read: () => new Promise(() => {}),
+    cancel: async () => { readerCancelled = true; },
+    releaseLock: () => {}
+  };
+  writer = {
+    abort: async () => { writerAborted = true; },
+    releaseLock: () => {}
+  };
+  port = { close: async () => { portClosed = true; } };
+  setConnectedUi(true);
+  let timeoutMessage = '';
+  try { await readLine(15); } catch (error) { timeoutMessage = error.message; }
+  let malformedRejected = false;
+  try { parsePak(new Uint8Array([84, 80, 65, 75, 1, 0]).buffer); }
+  catch (_) { malformedRejected = true; }
+  return { readerCancelled, writerAborted, portClosed, timeoutMessage,
+           disconnected: !reader && !writer && !port,
+           malformedRejected };
+})();
+`, releaseContext);
+const releaseResult = await releaseContext.releaseTransportTest;
+assert.equal(releaseResult.timeoutMessage, 'Board response timed out');
+assert.equal(releaseResult.readerCancelled, true);
+assert.equal(releaseResult.writerAborted, true);
+assert.equal(releaseResult.portClosed, true);
+assert.equal(releaseResult.disconnected, true);
+assert.equal(releaseResult.malformedRejected, true);
 console.log('Alle Web-Serial-Tests bestanden');

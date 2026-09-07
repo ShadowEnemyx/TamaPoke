@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TamaPoke · Gen 3 release preview</title>
+<style>
+  :root { --bg:#f2efe1; --ink:#2a2a36; --accent:#4f93c4; --ok:#58b868; --bad:#e8503a; --track:#d8d2bd; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; }
+  .wrap { max-width:680px; margin:0 auto; padding:2rem 1.25rem 4rem; }
+  h1 { font-size:2rem; margin:0 0 .25rem; }
+  h2 { font-size:1.25rem; margin:2.5rem 0 .5rem; }
+  .sub,.note { color:#6b6b76; }
+  .note { font-size:.9rem; }
+  .step { background:#fff; border:1px solid var(--track); border-radius:14px; padding:1.25rem 1.5rem; margin:1rem 0; }
+  .num { display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; font-weight:600; margin-right:.5rem; font-size:.9rem; }
+  .mandatory { background:#fff2ee; border:2px solid var(--bad); border-radius:14px; padding:1rem 1.2rem; margin:1rem 0 1.5rem; font-weight:600; }
+  .mandatory strong { color:var(--bad); }
+  .ver { display:inline-block; margin:.35rem 0 1.25rem; padding:.35rem .75rem; background:#fff; border:1px solid var(--track); border-radius:999px; font-size:.95rem; }
+  .row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; font-weight:600; padding:.65rem 1.2rem; border-radius:10px; border:1px solid var(--ink); background:#fff; cursor:pointer; }
+  button:hover { background:var(--bg); }
+  button:disabled { opacity:.5; cursor:default; }
+  esp-web-install-button { display:inline-block; }
+  esp-web-install-button[install-unsupported],.unsupported { display:none; }
+  .unsupported { color:var(--bad); font-weight:600; }
+  #log { font-family:ui-monospace,monospace; font-size:.85rem; background:#1b1b25; color:#d8dcf0; border-radius:10px; padding:.75rem 1rem; margin-top:1rem; max-height:240px; overflow:auto; white-space:pre-wrap; display:none; }
+  .bar { height:10px; background:var(--track); border-radius:5px; overflow:hidden; margin-top:.75rem; display:none; }
+  .bar>div { height:100%; width:0; background:var(--ok); transition:width .15s; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐢 TamaPoke</h1>
+  <p class="ver" id="fw-ver">GEN 3 RELEASE PREVIEW: <b>1.36.0</b></p>
+  <p class="sub">All 386 Pokémon from Kanto, Johto and Hoenn for the Waveshare ESP32-S3-Touch-AMOLED-1.75.</p>
+
+  <div class="mandatory"><strong>⚠️ TWO STEPS ARE REQUIRED.</strong><br>
+    Flashing the firmware alone is incomplete. After step 1, reconnect the board
+    and complete step 2 to copy all 386 Pokémon sprites to the microSD.</div>
+
+  <p class="unsupported" id="unsupported">⚠️ Use desktop Chrome or Edge. This browser does not support Web Serial.</p>
+
+  <h2><span class="num">1</span>Flash firmware 1.36.0</h2>
+  <div class="step">
+    <p>Connect the board by USB, press install and select its serial port.</p>
+    <esp-web-install-button manifest="manifest-gen3.json?v=1.36.0">
+      <button slot="activate">⚡ Install TamaPoke 1.36.0</button>
+      <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
+      <span slot="not-allowed">Needs HTTPS or localhost.</span>
+    </esp-web-install-button>
+    <p class="note"><b>Updating?</b> Leave <b>Erase device</b> unchecked to keep
+      your Pokémon and progress. Erase only a completely new board or a save you
+      intentionally want to delete.</p>
+  </div>
+
+  <h2><span class="num">2</span>Install all 386 sprites — required</h2>
+  <div class="step">
+    <p>Insert a microSD card. Close the flashing dialog, connect the board again,
+      then press the single install button. It safely sends the complete Kanto/
+      Johto package first and the Hoenn package second.</p>
+    <div class="row">
+      <button id="connect">🔌 Connect board</button>
+      <button id="full" disabled>⬇️ Install all 386 sprites</button>
+    </div>
+    <p class="note">Do not unplug the board or remove the microSD during transfer.
+      Existing Gen‑2 cards may use the same full process safely.</p>
+    <div class="bar" id="bar"><div></div></div>
+    <pre id="log"></pre>
+  </div>
+
+  <p class="note">This is a local release preview. The live installer still
+    serves the stable Gen‑2 version until Gen 3 is explicitly approved.</p>
+  <p class="note">Sprites: <a href="https://github.com/PMDCollab/SpriteCollab">PMD SpriteCollab</a>
+    (CC BY-NC). Pokémon © Nintendo / Game Freak. Unofficial non-commercial fan project.</p>
+</div>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+<script src="installer-gen3.js"></script>
+</body>
+</html>

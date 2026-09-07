@@ -1,6 +1,6 @@
 # TamaPoke Expanded - AI Handoff
 
-Stand: 2026-08-25
+Stand: 2026-09-07
 
 ## Projekt und Hardware
 
@@ -10,9 +10,13 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 
 - Firmware-Entry-Point: `TamaPoke.ino`
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
-- Aktueller lokaler Gen-3/Wasserzeichen-/Schritt-Test: `1.36.0-gen3-local` (ueber `TAMAPOKE_LOCAL_TEST`)
+- Lokaler Gen-3/Wasserzeichen-/Schritt-Test: `1.36.0-gen3-local` (ueber `TAMAPOKE_LOCAL_TEST`)
+- Vorbereiteter oeffentlicher Gen-3-Kandidat: `1.36.0` (ueber
+  `TAMAPOKE_GEN3_RELEASE`, ohne lokale Debugbefehle)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
+- Validierte Toolchain: ESP32-Core 3.3.10, Arduino_GFX 1.6.7,
+  SensorLib 0.4.1 und XPowersLib 0.3.3.
 - Sprache: DE, EN, ES, FR, IT, PT. Code und UI-Texte verwenden aus
   Font-Gruenden weitgehend ASCII ohne Umlaute/Akzente.
 
@@ -32,7 +36,9 @@ erwuenscht.
 ## Aktueller Gen-3-Arbeitsstand
 
 - Branch `local/full-gen3`; Tag `local-before-gen3` erlaubt die schnelle
-  Rueckkehr zum funktionierenden Gen-2-Stand. Noch kein Push und kein Release.
+  Rueckkehr zum funktionierenden Gen-2-Stand. Der getestete Gen-3-Featurestand
+  `da8bfa8` liegt bereits auf `fork/main`; der gehostete Installer und ein
+  GitHub-Release wurden noch nicht auf Gen 3 umgestellt.
 - Lokaler Dex #1–386 mit sechs Sprachen, uint16-Dexpfaden, Gen-3-Stats/Typen,
   Evolutionsregeln und dem 3-von-4-Stats-Gate ueber 40 Prozent.
 - Lokaler Erststart: Region Kanto/Johto/Hoenn waehlen, danach einen von drei
@@ -43,11 +49,16 @@ erwuenscht.
   `web/sprites.pak` bleibt #1–251. Der lokale Button fuer das volle 386er-Paket
   sendet beide Dateien nacheinander; dadurch bleibt jede GitHub-Datei unter
   dem 100-MB-Limit.
+- Eine einzelne Datei `sprites-gen3-full.pak` existiert nicht mehr und darf in
+  Anleitungen oder Release-Texten nicht verlangt werden.
 - Lokaler Webtest: `cd web && python3 -m http.server 8000`, danach
   `http://localhost:8000/dev.html` in Chrome/Edge. Schritt-, IMU- und
   Evolutionsdiagnosen laufen dort ueber Klicks; kein `screen`-Terminal noetig.
 - Build mit `bash tools/build_web_local.sh`; die vier lokalen Firmware-Parts
   liegen danach unter `web/firmware/tamapoke-1.36.0-gen3-local-*.bin`.
+- Der oeffentliche, debugfreie Release-Kandidat wird mit
+  `bash tools/build_web_gen3.sh` gebaut und ueber `web/release-gen3.html` lokal
+  geprueft. Diese Vorschau ersetzt `web/index.html` nicht.
 - Bei jeder spaeteren Gen-3-Veroeffentlichung muessen README, Installer und
   Release-Text deutlich sagen: Firmware-Flash allein reicht nicht; danach ist
   Schritt 2 fuer die microSD-Sprites Pflicht. Bei neuer/leerer/unklarer Karte
@@ -63,12 +74,17 @@ oeffentlichen Installationsflusses.
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
 - `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.36.0-gen3-local`.
+- `TAMAPOKE_GEN3_RELEASE` setzt die Anzeigeversion auf `1.36.0` und erlaubt den
+  386er-Dex, schaltet aber keine Debugbefehle frei.
 - Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
   und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
 - Diese Testversion darf nicht versehentlich in `web/index.html` oder
   `web/manifest.json` eingetragen oder als öffentlicher GitHub-Pages-Installer
-  aktiviert werden; sie liegt für Hardwaretests in `web/dev.html` und
+  aktiviert werden; sie liegen fuer Hardwaretests in `web/dev.html` und
   `web/manifest-local.json`.
+- `web/release-gen3.html` und `web/manifest-gen3.json` sind die lokale
+  oeffentliche Vorschau ohne Debugoberflaeche. Der einzige Sprite-Knopf sendet
+  `sprites.pak` und `sprites-gen3-update.pak` zwingend nacheinander.
 
 Aktueller Git-Zustand bei Erstellung dieser Datei:
 
@@ -200,8 +216,9 @@ werden; Desktop-Builds koennen den ES8311-/Lautsprecherweg nicht ersetzen.
 
 Die folgenden Eintraege dokumentieren den damaligen Entwicklungsstand. Nicht
 jede Testversion wurde veroeffentlicht; Angaben zu frueheren Branches sind keine
-Beschreibung des aktuellen Arbeitsbaums. Aktuell ist nur `1.36.0-gen3-local`
-der unveroeffentlichte Gen-3-Kandidat.
+Beschreibung des aktuellen Arbeitsbaums. `1.36.0-gen3-local` bleibt der lokale
+Debugstand; `1.36.0` ist als debugfreier Release-Kandidat vorbereitet, aber noch
+nicht im gehosteten Installer oder als GitHub-Release veroeffentlicht.
 
 1. `1.29.3-reliability`
    - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
@@ -275,6 +292,11 @@ der unveroeffentlichte Gen-3-Kandidat.
      sechs Sprachen und Gen-3-Evolutionsregeln.
    - Nur `tools/build_web_local.sh` erzeugt diesen Kandidaten. Der oeffentliche
      Gen-2-Build bleibt unveraendert und wird aus einem gepinnten Commit gebaut.
+14. `1.36.0` Release-Kandidat
+   - Oeffentliches Gen-3-Buildprofil mit 386 Arten, aber ohne lokale Testbefehle.
+   - Lokale Vorschau verlangt einen einzigen vollstaendigen Sprite-Schritt, der
+     das Gen-1/2- und das Gen-3-Paket nacheinander uebertraegt.
+   - Noch nicht auf GitHub Pages aktiviert und noch kein GitHub-Release.
 
 ## Architektur und wichtige Dateien
 
@@ -293,10 +315,14 @@ der unveroeffentlichte Gen-3-Kandidat.
   `deadlineRemaining` fuer `millis()`-Timer.
 - `tests/pet_tests.cpp` und `tests/battle_tests.cpp`: native Regressionstests.
 - `tools/build_web.sh`: erzeugt die vier separaten Installer-Binaries.
+- `tools/build_web_gen3.sh`: erzeugt und validiert den debugfreien
+  `1.36.0`-Release-Kandidaten, ohne den Gen-2-Installer zu ersetzen.
 - `web/manifest.json` und `web/index.html`: Web-Installer. Die Parts werden
   getrennt geflasht, damit NVS/Save bei Updates erhalten bleibt.
 - `web/dev.html` und `web/manifest-local.json`: lokaler Testinstaller, nicht fuer
   den oeffentlichen GitHub-Pages-Flow.
+- `web/release-gen3.html` und `web/manifest-gen3.json`: lokale Vorschau des
+  spaeteren oeffentlichen Gen-3-Installers ohne Testknoepfe.
 
 ## Testen und lokales Flashen
 
@@ -346,10 +372,22 @@ python3 -m http.server 8000 --directory web
 Im Browser `http://127.0.0.1:8000/dev.html` oeffnen. Auch beim lokalen
 Testupdate `Erase device` deaktiviert lassen.
 
+### Oeffentliche Gen-3-Release-Vorschau
+
+```bash
+bash tools/build_web_gen3.sh
+python3 -m http.server 8000 --directory web
+```
+
+Im Browser `http://127.0.0.1:8000/release-gen3.html` oeffnen. Diese Seite hat
+keine Debugbefehle und bietet genau einen verpflichtenden Komplett-Spriteknopf.
+Sie veraendert den weiterhin oeffentlichen Gen-2-Installer nicht.
+
 ## Verifikation vor einer eventuellen Veroeffentlichung
 
 1. `cd tests && make clean && make test`
-2. `bash tools/build_web.sh --check` und `bash tools/build_web_local.sh --check`
+2. `bash tools/build_web.sh --check`, `bash tools/build_web_local.sh --check`
+   und `bash tools/build_web_gen3.sh --check`
 3. `git diff --check`
 4. Hardware-Smoke-Test ohne Erase:
    - Save/Pet bleibt erhalten.
@@ -364,7 +402,9 @@ Testupdate `Erase device` deaktiviert lassen.
 
 ## Offene Themen und sichere naechste Schritte
 
-- `1.36.0-gen3-local` auf weiterer Hardware pruefen: Serial `IMU`, `STEPS`,
+- Der Besitzer hat lokales Flashen, Gen-3-Sprites und reales Schrittzaehlen
+  grundsaetzlich auf Hardware bestaetigt. Fuer die Release-Freigabe verbleibt
+  der erweiterte Test: Serial `IMU`, `STEPS`,
   `WALK n`, Software-Schritte bei Screen-off und USB, Trail-Belohnungen,
   Wild-Shiny-Fang, Nacht-FOOD, Morgen-Overlay,
   Schlaf bleibt beim Schuetteln. Schwellen nach der Session nachziehen.

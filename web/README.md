@@ -1,97 +1,86 @@
-# TamaPoke web installer
+# TamaPoke web installers
 
-End users should open only this page:
+## Current public installer
 
-## https://shadowenemyx.github.io/TamaPoke/web/
+End users currently use:
 
-No ZIP download, Arduino setup, manual firmware flashing or manual sprite file
-download is needed. The page flashes the firmware and loads the sprites from the
-browser.
+<https://shadowenemyx.github.io/TamaPoke/web/>
 
-A one-click page that flashes the firmware and loads the sprites from the browser
-(Chrome/Edge), with no Arduino or drivers. It uses
-[ESP Web Tools](https://esphome.github.io/esp-web-tools/) to flash and **Web
-Serial** to push the sprites to the SD with the firmware's `PUT` protocol (the
-same one as `tools/send_sd.py`).
+`index.html` and `manifest.json` remain pinned to the stable Gen‑2 release
+`1.35.3-soft-step` with Pokémon #1–251. Do not replace them until the owner
+explicitly approves the Gen‑3 release.
 
-## Contents
+## Gen‑3 pages
 
-- `index.html` — the page (flashing + sprite loader).
-- `manifest.json` — ESP Web Tools config (points at the split firmware parts).
-- `dev.html` — local-only test page with click-based Gen-3 serial controls; it is not the public installer.
-- `manifest-local.json` — local-only `1.36.0-gen3-local` manifest with debug
-  firmware parts.
-- `firmware/tamapoke-*-*.bin` — preserve-save firmware parts for ESP Web Tools.
-- `sprites.pak` — the stable public bundle contains #1–251.
-- `sprites-gen3-full.pak` — local-only #1–386 bundle for an empty card.
-- `sprites-gen3-update.pak` — only #252–386 plus the rebuilt 386-entry thumbnail
-  index for a quick local update on a card that already has #1–251.
+- `dev.html` + `manifest-local.json`: `1.36.0-gen3-local`, compiled with
+  `TAMAPOKE_LOCAL_TEST`. It includes click-driven Pokémon, evolution, battle,
+  IMU and step diagnostics.
+- `release-gen3.html` + `manifest-gen3.json`: public-style `1.36.0` release
+  preview, compiled with `TAMAPOKE_GEN3_RELEASE`. It has no debug controls or
+  debug firmware commands.
 
-## Regenerate
+The release preview deliberately exposes only one sprite action. It transfers
+`sprites.pak` and then `sprites-gen3-update.pak`, giving every user the complete
+#1–386 set. Firmware flashing without this second step is an incomplete Gen‑3
+installation.
 
-After changing the firmware or the sprites:
+There is no `sprites-gen3-full.pak`. The former combined file exceeded 100 MB;
+the two-package sequence keeps every GitHub-hosted file below the limit.
+
+## Files
+
+- `sprites.pak`: 502 normal/Shiny files for #1–251 plus 251-entry `thumbs.bin`
+  (503 bundle entries).
+- `sprites-gen3-update.pak`: 270 normal/Shiny files for #252–386 plus the full
+  386-entry `thumbs.bin` (271 bundle entries).
+- `firmware/tamapoke-<version>-*.bin`: bootloader, partitions, boot_app0 and app
+  parts used by ESP Web Tools without overwriting the NVS save partition.
+
+## Build and validate
 
 ```bash
-bash tools/build_web.sh        # stable public build
-bash tools/build_web_local.sh  # local 1.36.0-gen3-local build + #1–386 bundles
-# equivalent bundle-only commands:
-python3 tools/pack_bundle.py --gen3-full
-python3 tools/pack_bundle.py --gen3
+bash tools/build_web.sh --check         # pinned public Gen 2
+bash tools/build_web_local.sh --check   # Gen 3 debug
+bash tools/build_web_gen3.sh --check    # Gen 3 public release candidate
 ```
+
+Omit `--check` to refresh only that profile's own artifacts. The Gen‑3 release
+builder never modifies `index.html`, `manifest.json` or the Gen‑2 firmware.
+
+Each build validates its firmware version, Dex count, package entry counts and
+thumbnail structure/count. The public Gen‑3 build also rejects binaries that
+contain local `TESTMON` or `TESTEVO` command strings.
 
 ## Test locally
 
-Web Serial and ESP Web Tools need a **secure context**: `https://` or
-`http://localhost`. To test:
+Web Serial and ESP Web Tools require HTTPS or localhost:
 
 ```bash
-cd web && python3 -m http.server 8000
-# public-like installer: http://localhost:8000/
-# local test installer:   http://localhost:8000/dev.html
+python3 -m http.server 8000 --directory web
 ```
 
-The public page and `manifest.json` currently target `1.35.3-soft-step` and
-#1–251. The local page is for hardware tests and targets
-`1.36.0-gen3-local` and #1–386. It is compiled with `TAMAPOKE_LOCAL_TEST`, which adds the
-click-driven commands `TESTMON`, `TESTEVO`, `CAUGHT`, `BATTLE`, `WALK`, `STEPS`,
-`IMU` and `STATS` for testing the full #1–386 range and the persistent
-step/trail system. The step counter uses filtered accelerometer peaks; `IMU`
-shows both the raw chip pedometer and the software step counter, while `STATS`
-also shows whether USB is still detected.
-Do not replace the public manifest with the local one.
+- <http://127.0.0.1:8000/> — Gen‑2 public-like page
+- <http://127.0.0.1:8000/dev.html> — Gen‑3 debug page
+- <http://127.0.0.1:8000/release-gen3.html> — Gen‑3 public preview
 
-## End-user flow
+Use desktop Chrome or Edge. Close the ESP Web Tools flash dialog before
+reconnecting for sprite transfer because only one program can own the serial
+port. Leave **Erase device** unchecked when preserving an existing save.
 
-1. **Install TamaPoke** → flashes the firmware (pick the USB port; tick "Erase
-   device" only for a fresh board; leave it off when updating and keeping a save).
-2. **Connect board** + **Load Gen-3 update** → downloads `sprites-gen3-update.pak`
-   and copies it to the microSD over USB (about 38 MB). Use **Load full 386 package**
-   for an empty card. Close the step-1 install tab
-   first: only one program can use the port at a time.
-3. Restart (PWR button) → choose your starter and play.
+Both Gen‑3 pages use bounded serial reads/writes. A timeout or USB disconnect
+cancels the transfer, closes the port and returns the interface to the connect
+state so the user can reconnect.
 
-A hidden "pick them manually" option lets advanced users send their own `.bin`.
+## Publication gate
 
-## Hosting the sprites
+Publishing Gen 3 is a separate, explicitly approved operation:
 
-This fork serves `sprites.pak` directly from GitHub Pages so the one-click sprite
-loader works without manual downloads. Release assets are provided only as a
-backup for advanced users.
+1. Complete native, browser and hardware release checks.
+2. Promote the reviewed release page/manifest and four `1.36.0` firmware parts
+   into the public flow.
+3. Keep the mandatory two-step warning and single complete sprite button.
+4. Push/enable GitHub Pages and create release notes only after owner approval.
 
-All sprites are from PMD SpriteCollab, CC BY-NC (non-commercial sharing with
-attribution is allowed); see [`../CREDITS.md`](../CREDITS.md).
-
-## Deploy (GitHub Pages)
-
-1. Repo settings → Pages → serve from branch `tamapoke-expanded-update`, folder
-   `/`. Pages gives HTTPS automatically.
-2. The installer URL is `https://shadowenemyx.github.io/TamaPoke/web/`.
-
-> **Pages on private repos** needs GitHub Pro/Team. If you make the repo
-> **public** to use Pages for free, decide about the sprites first (see above and
-> CREDITS).
-
-## Limitations
-
-- Desktop **Chrome/Edge** only (Web Serial isn't in Firefox/Safari).
-- The local test page is intentionally not part of the GitHub Pages public flow.
+Sprites are from
+[PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) under CC BY-NC;
+see [`../CREDITS.md`](../CREDITS.md).

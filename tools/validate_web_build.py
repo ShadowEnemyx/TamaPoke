@@ -8,7 +8,34 @@ import re
 import struct
 
 
-def validate_pak(path: Path, expected_files: int) -> None:
+def validate_thumbs(blob: bytes, expected_count: int, source: str) -> None:
+    if len(blob) < 6 or blob[:4] != b"TPTH":
+        raise SystemExit(f"{source}: invalid TPTH header")
+    count = struct.unpack_from("<H", blob, 4)[0]
+    if count != expected_count:
+        raise SystemExit(f"{source}: {count} thumbnails, expected {expected_count}")
+    table_end = 6 + count * 4
+    if table_end > len(blob):
+        raise SystemExit(f"{source}: truncated thumbnail offset table")
+    offsets = struct.unpack_from(f"<{count}I", blob, 6)
+    previous = table_end
+    for index, offset in enumerate(offsets, 1):
+        if offset < table_end or offset < previous or offset + 3 > len(blob):
+            raise SystemExit(f"{source}: invalid thumbnail offset for entry {index}")
+        width, height, palette_count = struct.unpack_from("<BBB", blob, offset)
+        if not width or not height or not palette_count:
+            raise SystemExit(f"{source}: invalid thumbnail dimensions/palette for entry {index}")
+        entry_end = offset + 3 + palette_count * 2 + width * height
+        next_offset = offsets[index] if index < count else len(blob)
+        if entry_end != next_offset:
+            raise SystemExit(f"{source}: invalid thumbnail payload for entry {index}")
+        pixels = blob[offset + 3 + palette_count * 2:entry_end]
+        if any(pixel != 0xFF and pixel >= palette_count for pixel in pixels):
+            raise SystemExit(f"{source}: invalid palette index for entry {index}")
+        previous = offset
+
+
+def validate_pak(path: Path, expected_files: int, expected_thumbs: int | None = None) -> None:
     blob = path.read_bytes()
     if len(blob) < 6 or blob[:4] != b"TPAK":
         raise SystemExit(f"{path}: invalid TPAK header")
@@ -34,6 +61,16 @@ def validate_pak(path: Path, expected_files: int) -> None:
         raise SystemExit(f"{path}: duplicate bundle names")
     if pos + sum(size for _, size in entries) != len(blob):
         raise SystemExit(f"{path}: indexed data size does not match file size")
+    if expected_thumbs is not None:
+        data_pos = pos
+        thumb_blob = None
+        for name, size in entries:
+            if name == "mons/thumbs.bin":
+                thumb_blob = blob[data_pos:data_pos + size]
+            data_pos += size
+        if thumb_blob is None:
+            raise SystemExit(f"{path}: mons/thumbs.bin is missing")
+        validate_thumbs(thumb_blob, expected_thumbs, f"{path}:mons/thumbs.bin")
 
 
 def main() -> None:
@@ -45,6 +82,7 @@ def main() -> None:
     parser.add_argument("--expected-version")
     parser.add_argument("--expected-dex", type=int)
     parser.add_argument("--expected-files", type=int, required=True)
+    parser.add_argument("--expected-thumbs", type=int)
     args = parser.parse_args()
 
     if args.dex_header:
@@ -71,7 +109,7 @@ def main() -> None:
         }
         if actual_names != expected_names:
             raise SystemExit(f"{args.manifest}: firmware paths do not match version")
-    validate_pak(args.pak, args.expected_files)
+    validate_pak(args.pak, args.expected_files, args.expected_thumbs)
     print(f"OK: {args.pak} ({args.expected_files} entries)")
 
 

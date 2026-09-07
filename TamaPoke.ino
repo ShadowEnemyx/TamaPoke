@@ -81,6 +81,7 @@ bool galleryDirty = false;
 int galleryPage = 0;        // 10 paginas de 16
 int16_t galleryDetail = 0;  // dex en vista detalle, 0 = rejilla
 uint8_t galleryFilter = 0;  // 0 todos, 1 criados, 2 capturados
+uint8_t galleryRegion = 0;  // 0 all, 1 Kanto, 2 Johto, 3 Hoenn
 
 bool screenOff = false;       // pulsacion corta del boton PWR
 bool cardOpen = false;        // ficha del bicho (deslizar vertical)
@@ -680,6 +681,36 @@ void handleSerial() {
   line.trim();
   if (line.length() == 0) return;
   if (sdSerialCommand(line)) return;
+
+  // Browser save backup protocol: SAVEGET -> "SAVE <bytes>" + hex data + DONE;
+  // SAVEPUT <bytes> -> OK + raw data -> DONE and reboot. The Pet checksum
+  // rejects altered or incomplete snapshots before NVS is changed.
+  if (line == "SAVEGET") {
+    uint8_t backup[Pet::BACKUP_MAX_BYTES];
+    size_t size = pet.exportBackup(backup, sizeof(backup));
+    if (!size) { Serial.println("ERR"); return; }
+    Serial.printf("SAVE %u\n", (unsigned)size);
+    Serial.print("SAVEHEX ");
+    static const char HEX_CHARS[] = "0123456789ABCDEF";
+    for (size_t i = 0; i < size; ++i) { Serial.print(HEX_CHARS[backup[i] >> 4]); Serial.print(HEX_CHARS[backup[i] & 15]); }
+    Serial.println();
+    Serial.println("DONE");
+    return;
+  }
+  if (line.startsWith("SAVEPUT ")) {
+    uint32_t size = (uint32_t)line.substring(8).toInt();
+    if (size == 0 || size > Pet::BACKUP_MAX_BYTES) { Serial.println("ERR"); return; }
+    uint8_t backup[Pet::BACKUP_MAX_BYTES];
+    Serial.println("OK");
+    Serial.setTimeout(6000);
+    size_t got = Serial.readBytes(backup, size);
+    Serial.setTimeout(1000);
+    if (got != size || !pet.importBackup(backup, size)) { Serial.println("ERR"); return; }
+    Serial.println("DONE");
+    delay(150);
+    ESP.restart();
+    return;
+  }
 
   if (line == "PERF") {
     Serial.printf("screen=%s render=%lums max=%lums count=%lu skip=%lu loop=%lums loopMax=%lums interval=%u dirty ui=%d card=%d clock=%d help=%d kb=%d menu=%d battle=%d gallery=%d\n",
@@ -4924,13 +4955,17 @@ void keyboardTap(int16_t x, int16_t y) {
 // ---------- galeria pokedex ----------
 
 #define GAL_X 73
-#define GAL_Y 92
-#define GAL_CELL 80
+#define GAL_Y 116
+#define GAL_CELL 74
 
 bool galleryDexVisible(int16_t dex) {
   if (dex < 1 || dex > DEX_COUNT) return false;
+  if (galleryRegion == 1 && dex > 151) return false;
+  if (galleryRegion == 2 && (dex < 152 || dex > 251)) return false;
+  if (galleryRegion == 3 && dex < 252) return false;
   if (galleryFilter == 1) return pet.isRegistered(dex);
   if (galleryFilter == 2) return pet.isCaught(dex);
+  if (galleryFilter == 3) return pet.isShinyRegistered(dex);
   return true;
 }
 
@@ -5042,7 +5077,24 @@ void renderGallery() {
   gfx->setCursor(CX - strlen(head) * 6, 54);
   gfx->print(head);
 
-  const char *filters[3] = { T(S_FILTER_ALL), T(S_RAISED_MARK), T(S_CAUGHT_MARK) };
+  const char *regions[4] = { T(S_FILTER_ALL), "KANTO", "JOHTO", "HOENN" };
+  const char *filters[4] = { T(S_FILTER_ALL), T(S_RAISED_MARK), T(S_CAUGHT_MARK), "SHINY" };
+  for (int i = 0; i < 4; i++) {
+    int fx = 73 + i * 80;
+    uint16_t fill = (galleryRegion == i) ? UI_INK : UI_WHITE;
+    uint16_t text = (galleryRegion == i) ? UI_BG_DAY : UI_INK;
+    gfx->fillRoundRect(fx, 68, 76, 16, 5, fill);
+    gfx->drawRoundRect(fx, 68, 76, 16, 5, UI_INK);
+    gfx->setTextColor(text); gfx->setTextSize(1);
+    gfx->setCursor(fx + (76 - (int)strlen(regions[i]) * 6) / 2, 73); gfx->print(regions[i]);
+    fill = (galleryFilter == i) ? UI_INK : UI_WHITE;
+    text = (galleryFilter == i) ? UI_BG_DAY : UI_INK;
+    gfx->fillRoundRect(fx, 88, 76, 16, 5, fill);
+    gfx->drawRoundRect(fx, 88, 76, 16, 5, UI_INK);
+    gfx->setTextColor(text); gfx->setTextSize(1);
+    gfx->setCursor(fx + (76 - (int)strlen(filters[i]) * 6) / 2, 93); gfx->print(filters[i]);
+  }
+/*
   for (int i = 0; i < 3; i++) {
     int fx = 74 + i * 106;
     uint16_t fill = (galleryFilter == i) ? UI_INK : UI_WHITE;
@@ -5054,6 +5106,7 @@ void renderGallery() {
     gfx->setCursor(fx + (96 - (int)strlen(filters[i]) * 6) / 2, 80);
     gfx->print(filters[i]);
   }
+*/
 
   for (int r = 0; r < 4; r++) {
     for (int c = 0; c < 4; c++) {
@@ -5112,9 +5165,12 @@ void galleryTap(int16_t x, int16_t y) {
     return;
   }
   if (y >= 68 && y < GAL_Y) {
-    int f = (x - 74) / 106;
-    if (f >= 0 && f < 3 && x >= 74 + f * 106 && x <= 170 + f * 106) {
+    int f = (x - 73) / 80;
+    if (f >= 0 && f < 4 && x >= 73 + f * 80 && x <= 149 + f * 80) {
+      if (y < 86) galleryRegion = (uint8_t)f;
+      else {
       galleryFilter = (uint8_t)f;
+      }
       galleryPage = 0;
       galleryDirty = true;
       sfxPlay(SFX_TAP);

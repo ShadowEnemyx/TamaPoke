@@ -71,6 +71,19 @@
     <pre id="log"></pre>
   </div>
 
+  <h2>Save backup</h2>
+  <div class="step">
+    <p>Backups contain your pet, Pokédex, steps, rewards, inventory and settings.
+      They never include firmware or microSD sprites. Normal updates with <b>Erase
+      device</b> turned off do not need a restore.</p>
+    <div class="row">
+      <button id="backup" disabled>💾 Download backup</button>
+      <label><button id="restore" disabled>↩ Restore backup</button><input id="backup-file" type="file" accept=".tamapoke-save,application/octet-stream" hidden></label>
+    </div>
+    <p class="note">Restore automatically downloads a safety backup first, then asks
+      for confirmation. It overwrites the current game save and restarts the board.</p>
+  </div>
+
   <p class="note">Sprites: <a href="https://github.com/PMDCollab/SpriteCollab">PMD SpriteCollab</a>
     (CC BY-NC). Pokémon © Nintendo / Game Freak. Unofficial non-commercial fan project.</p>
 </div>

@@ -1064,6 +1064,31 @@ static void testThumbBlobValidation() {
   EXPECT_TRUE(!validateThumbBlob(blob.data(), blob.size(), 1));
 }
 
+static void testSaveBackupRoundTripAndValidation() {
+  Pet original;
+  original.speciesId = 252;
+  original.shiny = true;
+  original.fullness = 47;
+  original.stepsTotal = 123456;
+  original.stepsToday = 321;
+  original.registerCaught(384, true);
+  original.rename("SEBACKUP");
+  uint8_t blob[Pet::BACKUP_MAX_BYTES] = {};
+  size_t size = original.exportBackup(blob, sizeof(blob));
+  EXPECT_TRUE(size > 16 && size <= sizeof(blob));
+  Pet restored;
+  EXPECT_TRUE(restored.importBackup(blob, size));
+  EXPECT_EQ(restored.speciesId, 252);
+  EXPECT_TRUE(restored.shiny);
+  EXPECT_EQ(restored.fullness, 47);
+  EXPECT_EQ(restored.stepsTotal, 123456U);
+  EXPECT_TRUE(restored.isCaught(384));
+  EXPECT_TRUE(restored.isShinyRegistered(384));
+  EXPECT_TRUE(!restored.importBackup(blob, size - 1));
+  blob[size - 1] ^= 0x01;
+  EXPECT_TRUE(!restored.importBackup(blob, size));
+}
+
 int main() {
   testEggHatchesChosenStarter();
   testBattleStatsUseBaseGenesLevelAndTraining();
@@ -1111,6 +1136,7 @@ int main() {
   testGen2StarterFamiliesAndDexCompletion();
   testGen3DataAndEvolutionBranches();
   testThumbBlobValidation();
+  testSaveBackupRoundTripAndValidation();
 
   if (failures) {
     std::cerr << failures << " Testfehler\n";

@@ -322,6 +322,10 @@ public:
   // ~1s ambos cores: asi no se ve ni corta el tactil)
   bool savePending() const { return pendingSave; }
   void flushSave();
+  // Versioned game-state backup for the browser USB tool; never includes SD data.
+  static constexpr size_t BACKUP_MAX_BYTES = 512;
+  size_t exportBackup(uint8_t *out, size_t capacity) const;
+  bool importBackup(const uint8_t *data, size_t length);
 
 private:
   Preferences prefs;

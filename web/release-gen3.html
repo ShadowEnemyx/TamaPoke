@@ -71,8 +71,20 @@
     <pre id="log"></pre>
   </div>
 
-  <p class="note">This is a local release preview. The live installer still
-    serves the stable Gen‑2 version until Gen 3 is explicitly approved.</p>
+  <h2>Save backup</h2>
+  <div class="step">
+    <p>Download a complete copy of your pet, Pokédex, steps, rewards, inventory
+      and settings. Firmware and microSD sprites are never included.</p>
+    <div class="row">
+      <button id="backup" disabled>💾 Download backup</button>
+      <label><button id="restore" disabled>↩ Restore backup</button><input id="backup-file" type="file" accept=".tamapoke-save,application/octet-stream" hidden></label>
+    </div>
+    <p class="note">Restore first downloads a safety backup, then asks before it
+      overwrites the current game save and restarts the board.</p>
+  </div>
+
+  <p class="note">This local page is the release reference. Test it locally;
+    do not use it to change the published installer without approval.</p>
   <p class="note">Sprites: <a href="https://github.com/PMDCollab/SpriteCollab">PMD SpriteCollab</a>
     (CC BY-NC). Pokémon © Nintendo / Game Freak. Unofficial non-commercial fan project.</p>
 </div>

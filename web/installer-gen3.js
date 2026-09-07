@@ -15,6 +15,8 @@ let serialClosing = false;
 
 function setConnectedUi(connected) {
   document.getElementById('full').disabled = !connected || serialBusy;
+  document.getElementById('backup').disabled = !connected || serialBusy;
+  document.getElementById('restore').disabled = !connected || serialBusy;
   document.getElementById('connect').disabled = connected || serialBusy || !supported;
 }
 
@@ -233,3 +235,40 @@ document.getElementById('connect').onclick = async () => {
 
 document.getElementById('full').onclick = () =>
   loadBundles(['sprites.pak', 'sprites-gen3-update.pak']);
+
+function downloadBackup(bytes, suffix = '') {
+  const blob = new Blob([bytes], {type:'application/octet-stream'}); const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob); link.download = `tamapoke-save${suffix}.tamapoke-save`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+async function getBackup() {
+  await writeSerial(encoder.encode('SAVEGET\n'));
+  const header = await readLine(); const match = /^SAVE (\d+)$/.exec(header);
+  if (!match) throw new Error('Board rejected backup request'); const size = Number(match[1]);
+  if (size < 16 || size > 512) throw new Error('Invalid backup size');
+  const encoded = await readLine(10000); const hex = encoded.startsWith('SAVEHEX ') ? encoded.slice(8) : '';
+  if (hex.length !== size * 2 || !/^[0-9A-F]+$/.test(hex)) throw new Error('Backup data is invalid');
+  const data = new Uint8Array(size); for (let i=0; i<size; i++) data[i] = Number.parseInt(hex.slice(i*2, i*2+2), 16);
+  if (!await waitFor('DONE')) throw new Error('Backup did not complete'); return data;
+}
+async function runBackup(suffix = '') {
+  const data = await getBackup(); downloadBackup(data, suffix); return data;
+}
+document.getElementById('backup').onclick = async () => {
+  if (serialBusy) return; serialBusy=true; setConnectedUi(true);
+  try { await runBackup(); log('Backup downloaded. Keep it somewhere safe.'); } catch (error) { log('Backup failed: ' + error.message); } finally { serialBusy=false; setConnectedUi(Boolean(writer)); }
+};
+document.getElementById('restore').onclick = () => document.getElementById('backup-file').click();
+document.getElementById('backup-file').onchange = async (event) => {
+  const file = event.target.files[0]; event.target.value=''; if (!file || serialBusy) return;
+  const data = new Uint8Array(await file.arrayBuffer());
+  if (data.length < 16 || data.length > 512) { log('Restore rejected: invalid backup file.'); return; }
+  serialBusy=true; setConnectedUi(true);
+  try {
+    await runBackup('-before-restore'); log('Safety backup downloaded.');
+    if (!confirm('Restore this backup? It will overwrite the current game save and restart the board.')) { log('Restore cancelled.'); return; }
+    await writeSerial(encoder.encode(`SAVEPUT ${data.length}\n`)); if (!await waitFor('OK')) throw new Error('Board rejected backup file');
+    await writeSerial(data); if (!await waitFor('DONE', 10000)) throw new Error('Restore did not finish');
+    log('Restore complete. The board is restarting.'); await disconnectBoard();
+  } catch (error) { log('Restore failed: ' + error.message); } finally { serialBusy=false; setConnectedUi(Boolean(writer)); }
+};

@@ -3,6 +3,23 @@
 #include "audio.h"
 #include "dayphase.h"
 
+namespace {
+constexpr uint32_t BACKUP_MAGIC = 0x314B4254UL; // TBK1
+constexpr uint16_t BACKUP_VERSION = 1;
+struct __attribute__((packed)) PetBackup {
+  uint32_t magic; uint16_t version, length; uint32_t checksum;
+  uint8_t fullness, joy, energy, hygiene, poops, weight, geneAtk, geneDef, geneSpe, trAtk, trDef, trSpe;
+  uint8_t berryKnown, shiny, eggShiny, starterPick, eggTaps, careMistakes, lastEnd, bond, collectionFrame, dailyGoalDone, expeditionRewardItem, stepDailyRewardMask, stepMilestoneMask, pendingStepRewardMask, shakeCountToday, walkJoyToday, walkJoyHour, walkBondToday, evoDeclinedLv;
+  int16_t speciesId, eggTarget;
+  uint32_t ageMinutes, lastSeenEpoch, lastCareDay, lastPetInteractMinute, dailyGoalDay, expeditionEndEpoch, stepDay, stepsToday, stepsTotal, lastMorningDay, shakeDay, walkDay, walkHour, evoDeclinedAge;
+  uint16_t streak, bestStreak, medals, totalMedals, lastMilestone, gameHi, strHi, catchHi, memoHi, cleanHi, typeHi, battleWins, battleLosses, battleStreak, bestBattleStreak, dexRewardMask;
+  uint8_t dailyGoalType[DAILY_GOAL_COUNT], dailyGoalProgress[DAILY_GOAL_COUNT], itemCounts[EXP_ITEM_COUNT];
+  uint8_t dexReg[DEX_BITMAP_BYTES], dexShinyReg[DEX_BITMAP_BYTES], dexCaught[DEX_BITMAP_BYTES]; char nick[12];
+};
+static_assert(sizeof(PetBackup) <= Pet::BACKUP_MAX_BYTES, "backup buffer too small");
+uint32_t backupChecksum(const uint8_t *data, size_t length) { uint32_t v=2166136261UL; for(size_t i=0;i<length;i++) v=(v^data[i])*16777619UL; return v; }
+}
+
 static void loadDexBitmap(Preferences &prefs, const char *key, uint8_t *dst, size_t dstLen) {
   memset(dst, 0, dstLen);
   size_t stored = prefs.getBytesLength(key);
@@ -234,6 +251,25 @@ void Pet::tick() {
 // animacion para que el paron de la escritura a flash no se vea)
 void Pet::flushSave() {
   if (pendingSave) save();
+}
+
+size_t Pet::exportBackup(uint8_t *out, size_t capacity) const {
+  if (!out || capacity < sizeof(PetBackup)) return 0;
+  PetBackup b = {}; b.magic=BACKUP_MAGIC; b.version=BACKUP_VERSION; b.length=sizeof(b);
+  b.fullness=fullness;b.joy=joy;b.energy=energy;b.hygiene=hygiene;b.poops=poops;b.weight=weight;b.geneAtk=geneAtk;b.geneDef=geneDef;b.geneSpe=geneSpe;b.trAtk=trAtk;b.trDef=trDef;b.trSpe=trSpe;
+  b.berryKnown=berryKnown;b.shiny=shiny;b.eggShiny=eggShiny;b.starterPick=starterPick;b.eggTaps=eggTaps;b.careMistakes=careMistakes;b.lastEnd=lastEnd;b.bond=bond;b.collectionFrame=collectionFrame;b.dailyGoalDone=dailyGoalDone;b.expeditionRewardItem=expeditionRewardItem;b.stepDailyRewardMask=stepDailyRewardMask;b.stepMilestoneMask=stepMilestoneMask;b.pendingStepRewardMask=pendingStepRewardMask;b.shakeCountToday=shakeCountToday;b.walkJoyToday=walkJoyToday;b.walkJoyHour=walkJoyHour;b.walkBondToday=walkBondToday;b.evoDeclinedLv=evoDeclinedLv;
+  b.speciesId=speciesId;b.eggTarget=eggTarget;b.ageMinutes=ageMinutes;b.lastSeenEpoch=lastSeenEpoch;b.lastCareDay=lastCareDay;b.lastPetInteractMinute=lastPetInteractMinute;b.dailyGoalDay=dailyGoalDay;b.expeditionEndEpoch=expeditionEndEpoch;b.stepDay=stepDay;b.stepsToday=stepsToday;b.stepsTotal=stepsTotal;b.lastMorningDay=lastMorningDay;b.shakeDay=shakeDay;b.walkDay=walkDay;b.walkHour=walkHour;b.evoDeclinedAge=evoDeclinedAge;
+  b.streak=streak;b.bestStreak=bestStreak;b.medals=medals;b.totalMedals=totalMedals;b.lastMilestone=lastMilestone;b.gameHi=gameHi;b.strHi=strHi;b.catchHi=catchHi;b.memoHi=memoHi;b.cleanHi=cleanHi;b.typeHi=typeHi;b.battleWins=battleWins;b.battleLosses=battleLosses;b.battleStreak=battleStreak;b.bestBattleStreak=bestBattleStreak;b.dexRewardMask=dexRewardMask;
+  memcpy(b.dailyGoalType,dailyGoalType,sizeof(b.dailyGoalType));memcpy(b.dailyGoalProgress,dailyGoalProgress,sizeof(b.dailyGoalProgress));memcpy(b.itemCounts,itemCounts,sizeof(b.itemCounts));memcpy(b.dexReg,dexReg,sizeof(b.dexReg));memcpy(b.dexShinyReg,dexShinyReg,sizeof(b.dexShinyReg));memcpy(b.dexCaught,dexCaught,sizeof(b.dexCaught));memcpy(b.nick,nick,sizeof(b.nick));
+  b.checksum=0;b.checksum=backupChecksum(reinterpret_cast<const uint8_t*>(&b),sizeof(b));memcpy(out,&b,sizeof(b));return sizeof(b);
+}
+
+bool Pet::importBackup(const uint8_t *data, size_t length) {
+  if (!data || length != sizeof(PetBackup)) return false; PetBackup b; memcpy(&b,data,sizeof(b)); uint32_t sum=b.checksum;b.checksum=0;
+  if (b.magic!=BACKUP_MAGIC || b.version!=BACKUP_VERSION || b.length!=sizeof(b) || sum!=backupChecksum(reinterpret_cast<const uint8_t*>(&b),sizeof(b)) || b.speciesId < -1 || b.speciesId > DEX_COUNT || b.eggTarget < 1 || b.eggTarget > DEX_COUNT || (b.expeditionRewardItem != EXP_ITEM_NONE && b.expeditionRewardItem >= EXP_ITEM_COUNT)) return false;
+  fullness=b.fullness;joy=b.joy;energy=b.energy;hygiene=b.hygiene;poops=b.poops;weight=b.weight;geneAtk=b.geneAtk;geneDef=b.geneDef;geneSpe=b.geneSpe;trAtk=b.trAtk;trDef=b.trDef;trSpe=b.trSpe;berryKnown=b.berryKnown;shiny=b.shiny;eggShiny=b.eggShiny;starterPick=b.starterPick;eggTaps=b.eggTaps;careMistakes=b.careMistakes;lastEnd=b.lastEnd;bond=b.bond;collectionFrame=b.collectionFrame;dailyGoalDone=b.dailyGoalDone;expeditionRewardItem=b.expeditionRewardItem;stepDailyRewardMask=b.stepDailyRewardMask;stepMilestoneMask=b.stepMilestoneMask;pendingStepRewardMask=b.pendingStepRewardMask;shakeCountToday=b.shakeCountToday;walkJoyToday=b.walkJoyToday;walkJoyHour=b.walkJoyHour;walkBondToday=b.walkBondToday;evoDeclinedLv=b.evoDeclinedLv;
+  speciesId=b.speciesId;eggTarget=b.eggTarget;ageMinutes=b.ageMinutes;lastSeenEpoch=b.lastSeenEpoch;lastCareDay=b.lastCareDay;lastPetInteractMinute=b.lastPetInteractMinute;dailyGoalDay=b.dailyGoalDay;expeditionEndEpoch=b.expeditionEndEpoch;stepDay=b.stepDay;stepsToday=b.stepsToday;stepsTotal=b.stepsTotal;lastMorningDay=b.lastMorningDay;shakeDay=b.shakeDay;walkDay=b.walkDay;walkHour=b.walkHour;evoDeclinedAge=b.evoDeclinedAge;streak=b.streak;bestStreak=b.bestStreak;medals=b.medals;totalMedals=b.totalMedals;lastMilestone=b.lastMilestone;gameHi=b.gameHi;strHi=b.strHi;catchHi=b.catchHi;memoHi=b.memoHi;cleanHi=b.cleanHi;typeHi=b.typeHi;battleWins=b.battleWins;battleLosses=b.battleLosses;battleStreak=b.battleStreak;bestBattleStreak=b.bestBattleStreak;dexRewardMask=b.dexRewardMask;
+  memcpy(dailyGoalType,b.dailyGoalType,sizeof(dailyGoalType));memcpy(dailyGoalProgress,b.dailyGoalProgress,sizeof(dailyGoalProgress));memcpy(itemCounts,b.itemCounts,sizeof(itemCounts));memcpy(dexReg,b.dexReg,sizeof(dexReg));memcpy(dexShinyReg,b.dexShinyReg,sizeof(dexShinyReg));memcpy(dexCaught,b.dexCaught,sizeof(dexCaught));memcpy(nick,b.nick,sizeof(nick));nick[sizeof(nick)-1]=0;ceremony=CER_NONE;if (collectionFrame >= unlockedCollectionFrameCount()) collectionFrame=0;save();return true;
 }
 
 bool Pet::hasEvolutionPath(int16_t dex) const {

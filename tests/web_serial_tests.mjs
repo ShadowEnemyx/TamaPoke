@@ -125,6 +125,13 @@ assert.equal(result.writeDisconnected, true);
 
 const releaseHtml = fs.readFileSync(new URL('../web/release-gen3.html', import.meta.url), 'utf8');
 const releaseScript = fs.readFileSync(new URL('../web/installer-gen3.js', import.meta.url), 'utf8');
+const publicHtml = fs.readFileSync(new URL('../web/index.html', import.meta.url), 'utf8');
+assert(publicHtml.includes('id="backup"') && publicHtml.includes('id="restore"'),
+       'public installer must expose complete save backup and restore controls');
+assert(releaseScript.includes("SAVEGET\\n") && releaseScript.includes('SAVEPUT ${data.length}\\n'),
+       'save backup must use explicit export and checked restore commands');
+assert(releaseScript.includes('Safety backup downloaded') && releaseScript.includes('Restore this backup?'),
+       'restore must create a safety backup and require confirmation');
 assert(releaseHtml.includes('manifest-gen3.json?v=1.36.0'),
        'release preview must use the Gen-3 release manifest');
 assert.equal((releaseHtml.match(/id="full"/g) || []).length, 1,

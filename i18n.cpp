@@ -67,7 +67,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JUGAR", "Nv.%u", "R%u", "C:%u A:%u", "NUEVO", "FLASH/NO",
     "BUENOS DIAS",
     "PASOS", "HOY %lu", "TOTAL %lu", "RANGO RUTA %u",
-    "SHINY 1/%u", "CAPTURA +%u%%", "PASO %lu", "BONUS DE PASOS",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASO %lu", "BONUS DE PASOS", "COSTA", "VOLCAN", "BOSQUE", "SELLOS %u/3",
   },
   // ---------------- EN ----------------
   {
@@ -128,7 +128,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "PLAY", "Lv.%u", "R%u", "R:%u C:%u", "NEW", "FLASH/NO",
     "GOOD MORN.",
     "STEPS", "TODAY %lu", "TOTAL %lu", "TRAIL RANK %u",
-    "SHINY 1/%u", "CATCH +%u%%", "STEP %lu", "TRAIL REWARD",
+    "SHINY 1/%u", "CATCH +%u%%", "STEP %lu", "TRAIL REWARD", "COAST", "VOLCANO", "FOREST", "SEALS %u/3",
   },
   // ---------------- FR ----------------
   {
@@ -189,7 +189,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JOUER", "Niv.%u", "M%u", "E:%u C:%u", "NOUVEAU", "FLASH/NON",
     "BON MATIN",
     "PAS", "AUJOURD'HUI %lu", "TOTAL %lu", "RANG TRAIL %u",
-    "SHINY 1/%u", "CAPTURE +%u%%", "PAS %lu", "BONUS DE PAS",
+    "SHINY 1/%u", "CAPTURE +%u%%", "PAS %lu", "BONUS DE PAS", "COTE", "VOLCAN", "FORET", "SCEAUX %u/3",
   },
   // ---------------- DE ----------------
   {
@@ -250,7 +250,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "SPIELEN", "Lv.%u", "R%u", "A:%u G:%u", "NEU", "FLASH/NEIN",
     "GUTEN MORGEN",
     "SCHRITTE", "HEUTE %lu", "GESAMT %lu", "TRAIL-RANG %u",
-    "SHINY 1/%u", "FANG +%u%%", "SCHRITT %lu", "SCHRITT-BONUS",
+    "SHINY 1/%u", "FANG +%u%%", "SCHRITT %lu", "SCHRITT-BONUS", "KUESTE", "VULKAN", "WALD", "SIEGEL %u/3",
   },
   // ---------------- IT ----------------
   {
@@ -311,7 +311,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GIOCA", "Lv.%u", "T%u", "A:%u P:%u", "NUOVO", "FLASH/NO",
     "BUONGIORNO",
     "PASSI", "OGGI %lu", "TOTALE %lu", "RANGO TRAIL %u",
-    "SHINY 1/%u", "PRESA +%u%%", "PASSO %lu", "BONUS PASSI",
+    "SHINY 1/%u", "PRESA +%u%%", "PASSO %lu", "BONUS PASSI", "COSTA", "VULCANO", "BOSCO", "SIGILLI %u/3",
   },
   // ---------------- PT ----------------
   {
@@ -372,40 +372,40 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JOGAR", "Niv.%u", "R%u", "C:%u A:%u", "NOVO", "FLASH/NAO",
     "BOM DIA",
     "PASSOS", "HOJE %lu", "TOTAL %lu", "RANK TRILHA %u",
-    "SHINY 1/%u", "CAPTURA +%u%%", "PASSO %lu", "BONUS PASSOS",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASSO %lu", "BONUS PASSOS", "COSTA", "VULCAO", "FLORESTA", "SELOS %u/3",
   },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].
 static const char *const MED_NAME[LANG_COUNT][MED_COUNT] = {
-  { "Nv.10", "Nv.25", "Nv.50", "BAYA", "RACHA 7", "VINCULO", "FORMA TOPE", "EN FORMA" },
-  { "Lv.10", "Lv.25", "Lv.50", "BERRY", "7 STREAK", "BOND", "TOP FORM", "IN SHAPE" },
-  { "Niv.10", "Niv.25", "Niv.50", "BAIE", "SERIE 7", "LIEN", "FORME MAX", "EN FORME" },
-  { "Lv.10", "Lv.25", "Lv.50", "BEERE", "7 SERIE", "BINDUNG", "ENDFORM", "FIT" },
-  { "Lv.10", "Lv.25", "Lv.50", "BACCA", "SERIE 7", "LEGAME", "FORMA MAX", "IN FORMA" },
-  { "Niv.10", "Niv.25", "Niv.50", "BAGA", "SEQ 7", "LACO", "FORMA MAX", "EM FORMA" },
+  { "Nv.10", "Nv.25", "Nv.50", "BAYA", "RACHA 7", "VINCULO", "FORMA TOPE", "EN FORMA", "EXPLORADOR HOENN" },
+  { "Lv.10", "Lv.25", "Lv.50", "BERRY", "7 STREAK", "BOND", "TOP FORM", "IN SHAPE", "HOENN EXPLORER" },
+  { "Niv.10", "Niv.25", "Niv.50", "BAIE", "SERIE 7", "LIEN", "FORME MAX", "EN FORME", "EXPLORATEUR HOENN" },
+  { "Lv.10", "Lv.25", "Lv.50", "BEERE", "7 SERIE", "BINDUNG", "ENDFORM", "FIT", "HOENN FORSCHER" },
+  { "Lv.10", "Lv.25", "Lv.50", "BACCA", "SERIE 7", "LEGAME", "FORMA MAX", "IN FORMA", "ESPLORATORE HOENN" },
+  { "Niv.10", "Niv.25", "Niv.50", "BAGA", "SEQ 7", "LACO", "FORMA MAX", "EM FORMA", "EXPLORADOR HOENN" },
 };
 static const char *const MED_LBL[LANG_COUNT][MED_COUNT] = {
-  { "Nv10", "Nv25", "Nv50", "BAYA", "7DIAS", "VINC", "TOPE", "SANO" },
-  { "Lv10", "Lv25", "Lv50", "BERRY", "7DAYS", "BOND", "TOP", "FIT" },
-  { "Niv10", "Niv25", "Niv50", "BAIE", "7JRS", "LIEN", "MAX", "FORME" },
-  { "Lv10", "Lv25", "Lv50", "BEERE", "7TAGE", "BND", "END", "FIT" },
-  { "Lv10", "Lv25", "Lv50", "BACCA", "7GG", "LEG", "MAX", "FIT" },
-  { "Niv10", "Niv25", "Niv50", "BAGA", "7DIAS", "LACO", "MAX", "FIT" },
+  { "Nv10", "Nv25", "Nv50", "BAYA", "7DIAS", "VINC", "TOPE", "SANO", "HOENN" },
+  { "Lv10", "Lv25", "Lv50", "BERRY", "7DAYS", "BOND", "TOP", "FIT", "HOENN" },
+  { "Niv10", "Niv25", "Niv50", "BAIE", "7JRS", "LIEN", "MAX", "FORME", "HOENN" },
+  { "Lv10", "Lv25", "Lv50", "BEERE", "7TAGE", "BND", "END", "FIT", "HOENN" },
+  { "Lv10", "Lv25", "Lv50", "BACCA", "7GG", "LEG", "MAX", "FIT", "HOENN" },
+  { "Niv10", "Niv25", "Niv50", "BAGA", "7DIAS", "LACO", "MAX", "FIT", "HOENN" },
 };
 static const char *const MED_DSC[LANG_COUNT][MED_COUNT] = {
   { "NIVEL 10", "NIVEL 25", "NIVEL 50", "BAYA HALLADA",
-    "RACHA 7 DIAS", "VINCULO MAX", "FORMA FINAL", "EN FORMA" },
+    "RACHA 7 DIAS", "VINCULO MAX", "FORMA FINAL", "EN FORMA", "3 SELLOS HOENN" },
   { "LEVEL 10", "LEVEL 25", "LEVEL 50", "BERRY FOUND",
-    "7 DAY STREAK", "MAX BOND", "FINAL FORM", "IN SHAPE" },
+    "7 DAY STREAK", "MAX BOND", "FINAL FORM", "IN SHAPE", "3 HOENN SEALS" },
   { "NIVEAU 10", "NIVEAU 25", "NIVEAU 50", "BAIE TROUVEE",
-    "SERIE 7 JOURS", "LIEN MAX", "FORME FINALE", "EN FORME" },
+    "SERIE 7 JOURS", "LIEN MAX", "FORME FINALE", "EN FORME", "3 SCEAUX HOENN" },
   { "LEVEL 10", "LEVEL 25", "LEVEL 50", "BEERE GEFUNDEN",
-    "7 TAGE SERIE", "MAX BINDUNG", "ENDFORM", "FIT" },
+    "7 TAGE SERIE", "MAX BINDUNG", "ENDFORM", "FIT", "3 HOENN SIEGEL" },
   { "LIVELLO 10", "LIVELLO 25", "LIVELLO 50", "BACCA TROVATA",
-    "SERIE 7 GIORNI", "LEGAME MAX", "FORMA FINALE", "IN FORMA" },
+    "SERIE 7 GIORNI", "LEGAME MAX", "FORMA FINALE", "IN FORMA", "3 SIGILLI HOENN" },
   { "NIVEL 10", "NIVEL 25", "NIVEL 50", "BAGA ACHADA",
-    "SEQ 7 DIAS", "LACO MAX", "FORMA FINAL", "EM FORMA" },
+    "SEQ 7 DIAS", "LACO MAX", "FORMA FINAL", "EM FORMA", "3 SELOS HOENN" },
 };
 
 const char *T(StrId id) { return STRINGS[gLang][id]; }

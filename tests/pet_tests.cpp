@@ -656,6 +656,36 @@ static void testExpeditionStartAndClaim() {
   EXPECT_EQ(pet.expeditionRewardItem, EXP_ITEM_NONE);
 }
 
+static void testHoennExpeditionSitesSealsAndMedal() {
+  Pet pet = hatchedPet(252);
+  pet.energy = 100;
+  EXPECT_TRUE(!pet.startExpedition(15, 1000, 99, 0, EXP_SITE_NONE));
+  EXPECT_TRUE(pet.startExpedition(15, 1000, 99, 0, EXP_SITE_COAST));
+  EXPECT_EQ(pet.expeditionRewardItem, EXP_ITEM_ENERGY);
+  EXPECT_EQ(pet.claimExpedition(1900), EXP_ITEM_ENERGY);
+  EXPECT_TRUE(pet.hasHoennSeal(EXP_SITE_COAST));
+  EXPECT_EQ(pet.hoennSealCount(), 1);
+
+  pet.energy = 100;
+  EXPECT_TRUE(pet.startExpedition(15, 2000, 0, 3, EXP_SITE_VOLCANO));
+  EXPECT_EQ(pet.expeditionRewardItem, EXP_ITEM_TRAIN);
+  EXPECT_EQ(pet.claimExpedition(2900), EXP_ITEM_TRAIN);
+  EXPECT_TRUE(pet.hasHoennSeal(EXP_SITE_VOLCANO));
+
+  pet.energy = 100;
+  EXPECT_TRUE(pet.startExpedition(15, 3000, 99, 0, EXP_SITE_FOREST));
+  EXPECT_EQ(pet.expeditionRewardItem, EXP_ITEM_CARE);
+  EXPECT_EQ(pet.claimExpedition(3900), EXP_ITEM_CARE);
+  EXPECT_EQ(pet.hoennSealCount(), 3);
+  EXPECT_TRUE(pet.hasMedal(MED_HOENN_EXPLORER));
+  uint8_t backup[Pet::BACKUP_MAX_BYTES] = {};
+  size_t backupSize = pet.exportBackup(backup, sizeof(backup));
+  Pet restored;
+  EXPECT_TRUE(restored.importBackup(backup, backupSize));
+  EXPECT_EQ(restored.hoennSealCount(), 3);
+  EXPECT_TRUE(restored.hasMedal(MED_HOENN_EXPLORER));
+}
+
 static void testExpeditionRequirementsAndTrainingChances() {
   Pet egg;
   EXPECT_TRUE(!egg.canStartExpedition(15, 1000));
@@ -1121,6 +1151,7 @@ int main() {
   testFarewellAndRunawayReadiness();
   testBattleRewardsAndProgression();
   testExpeditionStartAndClaim();
+  testHoennExpeditionSitesSealsAndMedal();
   testExpeditionRequirementsAndTrainingChances();
   testExpeditionItemsCapAndConsumeSafely();
   testExpeditionHudStates();

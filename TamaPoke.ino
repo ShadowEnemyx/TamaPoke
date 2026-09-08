@@ -93,6 +93,7 @@ uint8_t cardPage = 0;         // 0 perfil ... 7 expedicion, 8 pasos/trail
 uint8_t boxPage = 0;
 uint8_t boxSort = 0;          // 0 dex, 1 tipo, 2 criados primero
 bool expeditionTrainChoiceOpen = false;
+ExpeditionSite expeditionSiteChoice = EXP_SITE_COAST;
 bool clockOpen = false;       // pantalla de ajuste de hora (deslizar abajo)
 int clockH = 12, clockM = 0;  // hora en edicion
 bool powerSave = false;       // ahorro opcional: off por defecto
@@ -4537,6 +4538,16 @@ StrId expeditionItemText(ExpeditionItem item) {
   }
 }
 
+StrId expeditionSiteText(ExpeditionSite site) {
+  if (site == EXP_SITE_VOLCANO) return S_EXP_VOLCANO;
+  if (site == EXP_SITE_FOREST) return S_EXP_FOREST;
+  return S_EXP_COAST;
+}
+
+uint16_t expeditionSiteColor(ExpeditionSite site) {
+  return site == EXP_SITE_VOLCANO ? UI_BAR_BAD : site == EXP_SITE_FOREST ? UI_BAR_OK : 0x4C98;
+}
+
 uint16_t expeditionItemColor(ExpeditionItem item) {
   switch (item) {
     case EXP_ITEM_SNACK: return UI_BAR_WARN;
@@ -4624,7 +4635,7 @@ void drawExpeditionHud() {
   char label[18];
   if (state == EXP_HUD_ACTIVE) {
     uint32_t left = (pet.expeditionEndEpoch - nowEpoch + 59UL) / 60UL;
-    snprintf(label, sizeof(label), "%s %lum", T(S_EXP_HUD_TOUR), (unsigned long)left);
+    snprintf(label, sizeof(label), "%s %lum", T(expeditionSiteText((ExpeditionSite)pet.expeditionSite)), (unsigned long)left);
   } else if (state == EXP_HUD_READY) {
     snprintf(label, sizeof(label), "%s", T(S_EXP_READY));
   } else {
@@ -4721,6 +4732,10 @@ void renderCardExpedition() {
     gfx->setTextSize(2);
     gfx->setCursor(CX - strlen(found) * 6, 78);
     gfx->print(found);
+    gfx->setTextColor(expeditionSiteColor((ExpeditionSite)pet.expeditionSite));
+    gfx->setTextSize(1);
+    gfx->setCursor(CX - (int)strlen(T(expeditionSiteText((ExpeditionSite)pet.expeditionSite))) * 3, 92);
+    gfx->print(T(expeditionSiteText((ExpeditionSite)pet.expeditionSite)));
     gfx->fillRoundRect(98, 98, 270, 48, 11, UI_BAR_OK);
     gfx->setTextColor(UI_BG_DAY);
     gfx->setTextSize(2);
@@ -4739,6 +4754,20 @@ void renderCardExpedition() {
     gfx->setCursor(CX - 90, 116);
     gfx->print(T(S_WAIT));
   } else {
+    const ExpeditionSite sites[3] = { EXP_SITE_COAST, EXP_SITE_VOLCANO, EXP_SITE_FOREST };
+    const int siteXs[3] = { 50, 180, 310 };
+    for (uint8_t i = 0; i < 3; i++) {
+      bool selected = expeditionSiteChoice == sites[i];
+      uint16_t col = expeditionSiteColor(sites[i]);
+      gfx->fillRoundRect(siteXs[i], 60, 106, 28, 8, selected ? col : UI_WHITE);
+      gfx->drawRoundRect(siteXs[i], 60, 106, 28, 8, col);
+      gfx->setTextColor(selected ? UI_BG_DAY : UI_INK); gfx->setTextSize(1);
+      const char *name = T(expeditionSiteText(sites[i]));
+      gfx->setCursor(siteXs[i] + (106 - (int)strlen(name) * 6) / 2, 70); gfx->print(name);
+    }
+    char seals[20]; snprintf(seals, sizeof(seals), T(S_EXP_SEALS_FMT), pet.hoennSealCount());
+    gfx->setTextColor(pet.hoennSealCount() == 3 ? UI_BAR_WARN : UI_TRACK); gfx->setTextSize(1);
+    gfx->setCursor(CX - (int)strlen(seals) * 3, 90); gfx->print(seals);
     const uint8_t minutes[3] = { 15, 30, 60 };
     const StrId labels[3] = { S_EXP_15, S_EXP_30, S_EXP_60 };
     const int xs[3] = { 50, 180, 310 };
@@ -4746,50 +4775,50 @@ void renderCardExpedition() {
       uint8_t cost = Pet::expeditionEnergyCost(minutes[i]);
       bool available = pet.canStartExpedition(minutes[i], nowEpoch);
       uint16_t col = i == 0 ? UI_BAR_OK : i == 1 ? 0x4C98 : UI_BAR_BAD;
-      gfx->fillRoundRect(xs[i], 94, 106, 54, 9, available ? col : UI_TRACK);
+      gfx->fillRoundRect(xs[i], 100, 106, 54, 9, available ? col : UI_TRACK);
       gfx->setTextColor(UI_BG_DAY);
       gfx->setTextSize(2);
       const char *label = T(labels[i]);
-      gfx->setCursor(xs[i] + (106 - (int)strlen(label) * 12) / 2, 104);
+      gfx->setCursor(xs[i] + (106 - (int)strlen(label) * 12) / 2, 110);
       gfx->print(label);
       char costText[12];
       snprintf(costText, sizeof(costText), "-%u ENE", cost);
       gfx->setTextSize(1);
-      gfx->setCursor(xs[i] + (106 - (int)strlen(costText) * 6) / 2, 130);
+      gfx->setCursor(xs[i] + (106 - (int)strlen(costText) * 6) / 2, 136);
       gfx->print(costText);
     }
     if (pet.expeditionInventoryFull()) {
       gfx->setTextColor(UI_BAR_BAD);
       gfx->setTextSize(1);
-      gfx->setCursor(CX - strlen(T(S_INV_FULL)) * 3, 76);
+      gfx->setCursor(CX - strlen(T(S_INV_FULL)) * 3, 164);
       gfx->print(T(S_INV_FULL));
     } else if (pet.energy < 12) {
       char need[24];
       snprintf(need, sizeof(need), T(S_NEED_ENE_FMT), 12);
       gfx->setTextColor(UI_BAR_BAD);
       gfx->setTextSize(1);
-      gfx->setCursor(CX - strlen(need) * 3, 76);
+      gfx->setCursor(CX - strlen(need) * 3, 164);
       gfx->print(need);
     }
   }
 
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_INVENTORY)) * 6, 174);
+  gfx->setCursor(CX - strlen(T(S_INVENTORY)) * 6, 184);
   gfx->print(T(S_INVENTORY));
-  drawExpeditionItem(50, 190, EXP_ITEM_SNACK);
-  drawExpeditionItem(244, 190, EXP_ITEM_ENERGY);
-  drawExpeditionItem(50, 254, EXP_ITEM_CARE);
-  drawExpeditionItem(244, 254, EXP_ITEM_TRAIN);
+  drawExpeditionItem(50, 200, EXP_ITEM_SNACK);
+  drawExpeditionItem(244, 200, EXP_ITEM_ENERGY);
+  drawExpeditionItem(50, 264, EXP_ITEM_CARE);
+  drawExpeditionItem(244, 264, EXP_ITEM_TRAIN);
   if (expeditionTrainChoiceOpen) renderExpeditionTrainChoice();
 }
 
 int8_t expeditionItemAt(int16_t x, int16_t y) {
-  if ((y < 190 || y > 244) && (y < 254 || y > 308)) return -1;
+  if ((y < 200 || y > 254) && (y < 264 || y > 318)) return -1;
   bool left = x >= 50 && x <= 222;
   bool right = x >= 244 && x <= 416;
   if (!left && !right) return -1;
-  uint8_t row = y >= 254 ? 1 : 0;
+  uint8_t row = y >= 264 ? 1 : 0;
   return row * 2 + (right ? 1 : 0);
 }
 
@@ -4828,10 +4857,15 @@ void expeditionCardTap(int16_t x, int16_t y) {
     }
     return;
   }
-  if (!pet.expeditionActive(nowEpoch) && y >= 94 && y <= 148) {
+  if (!pet.expeditionActive(nowEpoch) && y >= 60 && y <= 88) {
+    int idx = x >= 50 && x <= 156 ? 0 : x >= 180 && x <= 286 ? 1 : x >= 310 && x <= 416 ? 2 : -1;
+    if (idx >= 0) { expeditionSiteChoice = (ExpeditionSite)idx; cardDirty = true; sfxPlay(SFX_TAP); lockTouchBrief(); }
+    return;
+  }
+  if (!pet.expeditionActive(nowEpoch) && y >= 100 && y <= 154) {
     const uint8_t minutes[3] = { 15, 30, 60 };
     int idx = x >= 50 && x <= 156 ? 0 : x >= 180 && x <= 286 ? 1 : x >= 310 && x <= 416 ? 2 : -1;
-    if (idx >= 0 && pet.startExpedition(minutes[idx], nowEpoch, (uint8_t)random(100), (uint8_t)random(3))) {
+    if (idx >= 0 && pet.startExpedition(minutes[idx], nowEpoch, (uint8_t)random(100), (uint8_t)random(4), expeditionSiteChoice)) {
       sfxPlay(SFX_EXPEDITION_START);
       cardDirty = true;
       lockTouchBrief();

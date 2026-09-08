@@ -53,6 +53,13 @@ enum ExpeditionItem : uint8_t {
   EXP_ITEM_TRAIN,
   EXP_ITEM_NONE = 0xFF,
 };
+#define EXPEDITION_SITE_COUNT 3
+enum ExpeditionSite : uint8_t {
+  EXP_SITE_COAST = 0,
+  EXP_SITE_VOLCANO,
+  EXP_SITE_FOREST,
+  EXP_SITE_NONE = 0xFF,
+};
 #define EXP_ITEM_COUNT 4
 #define EXP_ITEM_MAX 3
 
@@ -86,9 +93,9 @@ enum TrainingStat : int8_t {
 enum : uint16_t {
   MED_LV10 = 1 << 0, MED_LV25 = 1 << 1, MED_LV50 = 1 << 2,
   MED_BERRY = 1 << 3, MED_STREAK7 = 1 << 4, MED_BOND = 1 << 5,
-  MED_FINAL = 1 << 6, MED_FIT = 1 << 7,
+  MED_FINAL = 1 << 6, MED_FIT = 1 << 7, MED_HOENN_EXPLORER = 1 << 8,
 };
-#define MED_COUNT 8
+#define MED_COUNT 9
 
 enum BattleRewardStat : uint8_t {
   BATTLE_REWARD_NONE = 0,
@@ -155,6 +162,8 @@ public:
   uint8_t itemCounts[EXP_ITEM_COUNT] = { 0 };
   uint32_t expeditionEndEpoch = 0;
   uint8_t expeditionRewardItem = EXP_ITEM_NONE;
+  uint8_t expeditionSite = EXP_SITE_NONE;
+  uint8_t hoennSealMask = 0;
   // Schrittfortschritt des Spielers: heute wird am RTC-Tag zurueckgesetzt,
   // der Gesamtwert bleibt ueber Eier und neue Pokemon erhalten.
   uint32_t stepsToday = 0;
@@ -210,9 +219,12 @@ public:
   bool expeditionInventoryFull() const;
   bool canStartExpedition(uint8_t minutes, uint32_t nowEpoch) const;
   uint8_t expeditionTrainingChance(uint8_t minutes) const;
-  bool startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, uint8_t itemRoll = 0);
+  bool startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, uint8_t itemRoll = 0,
+                       ExpeditionSite site = EXP_SITE_COAST);
   ExpeditionItem claimExpedition(uint32_t nowEpoch);
   bool useExpeditionItem(ExpeditionItem item, int8_t trainingStat = -1);
+  uint8_t hoennSealCount() const;
+  bool hasHoennSeal(ExpeditionSite site) const;
 
   // stats de combate: base real de gen 1 x genes + nivel + entrenamiento
   uint16_t atkStat() const;
@@ -379,6 +391,7 @@ private:
   void hatch();
   void registerSpecies(int16_t dex);
   bool canReceiveExpeditionItem(ExpeditionItem item) const;
+  ExpeditionItem expeditionRewardFor(ExpeditionSite site, uint8_t minutes, uint8_t luckRoll, uint8_t itemRoll) const;
   void save();
   void load();
   static uint8_t clamp100(int v) { return v < 0 ? 0 : (v > 100 ? 100 : v); }

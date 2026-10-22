@@ -46,7 +46,7 @@
 <body>
 <div class="wrap">
   <h1>🐢 TamaPoke</h1>
-  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.36.0-gen3-local</b> · 25 Aug 2026</p>
+  <p class="ver" id="fw-ver">LOCAL TEST flash: <b>1.36.2-hoenn-walk-local</b> · 22 Oct 2026</p>
   <p class="sub">A 386-Pokémon local test build for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
      Install it from your browser — no ZIP download, no release files, no Arduino,
      no manual firmware files.</p>
@@ -63,10 +63,10 @@
   <h2><span class="num">1</span>Flash the firmware</h2>
   <div class="step">
     <p>Plug the board in via USB and press install. Pick the port and wait.</p>
-    <p class="note" id="fw-step">Installs firmware <b>1.36.0-gen3-local</b> from 25 Aug 2026.
+    <p class="note" id="fw-step">Installs firmware <b>1.36.2-hoenn-walk-local</b> from 22 Oct 2026.
        The same version is shown on the board in Settings after flashing.</p>
-    <esp-web-install-button manifest="manifest-local.json?v=1.36.0-gen3-local">
-      <button id="install-local" slot="activate">⚡ Install LOCAL test 1.36.0-gen3-local</button>
+    <esp-web-install-button manifest="manifest-local.json?v=1.36.2-hoenn-walk-local">
+      <button id="install-local" slot="activate">⚡ Install LOCAL test 1.36.2-hoenn-walk-local</button>
       <span slot="unsupported">Browser not supported (use Chrome/Edge).</span>
       <span slot="not-allowed">Needs HTTPS.</span>
     </esp-web-install-button>
@@ -153,7 +153,7 @@ function formatReleased(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-fetch('manifest-local.json?v=1.36.0-gen3-local')
+fetch('manifest-local.json?v=1.36.2-hoenn-walk-local')
   .then((r) => r.ok ? r.json() : null)
   .then((m) => {
     if (!m || !m.version) return;

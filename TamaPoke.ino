@@ -37,7 +37,7 @@
 #error "Gen-3 source requires an explicit local-test or release build profile"
 #endif
 #ifdef TAMAPOKE_LOCAL_TEST
-#define FW_VERSION "1.36.0-gen3-local"
+#define FW_VERSION "1.36.2-hoenn-walk-local"
 #elif defined(TAMAPOKE_GEN3_RELEASE)
 #define FW_VERSION "1.36.1"
 #else
@@ -545,7 +545,10 @@ void loop() {
   // Die Erkennung filtert bereits Einzelstoesse und verlangt Geh-Rhythmus.
   // Deshalb auch direkt nach dem Abziehen von USB zaehlen: Der gecachte
   // VBUS-Status kann sonst bis zu zehn Sekunden echte Schritte verwerfen.
-  if (walked) pet.applyWalk(walked);
+  if (walked) {
+    pet.applyWalk(walked, rtcEpoch());
+    if (cardOpen && cardPage == 7) cardDirty = true;
+  }
   if ((pet.stepsToday != stepsBefore || pet.stepDay != stepDayBefore) &&
       cardOpen && cardPage == 8) cardDirty = true;
   if (imuShakeEdge() && !screenOff) {
@@ -926,7 +929,7 @@ void handleSerial() {
     Serial.println("DONE");
   } else if (line.startsWith("WALK ")) {
     uint16_t n = (uint16_t)line.substring(5).toInt();
-    uint8_t gained = pet.applyWalk(n);
+    uint8_t gained = pet.applyWalk(n, rtcEpoch());
     Serial.printf("walk=%u today=%lu total=%lu joy=%u bond=%u\n", gained,
                   (unsigned long)pet.stepsToday, (unsigned long)pet.stepsTotal,
                   pet.joy, pet.bond);
@@ -4786,6 +4789,8 @@ void renderCardExpedition() {
       gfx->setTextSize(1);
       gfx->setCursor(xs[i] + (106 - (int)strlen(costText) * 6) / 2, 136);
       gfx->print(costText);
+      char goalText[24]; snprintf(goalText, sizeof(goalText), T(S_EXP_WALK_PROGRESS), 0, Pet::expeditionStepGoal(minutes[i]));
+      gfx->setCursor(xs[i] + (106 - (int)strlen(goalText) * 6) / 2, 146); gfx->print(goalText);
     }
     if (pet.expeditionInventoryFull()) {
       gfx->setTextColor(UI_BAR_BAD);
@@ -4806,6 +4811,13 @@ void renderCardExpedition() {
   gfx->setTextSize(2);
   gfx->setCursor(CX - strlen(T(S_INVENTORY)) * 6, 184);
   gfx->print(T(S_INVENTORY));
+  if (pet.expeditionEndEpoch && pet.expeditionMinutes) {
+    char progress[48];
+    if (pet.expeditionWalkBonusEarned()) snprintf(progress, sizeof(progress), "%s", T(S_EXP_WALK_EARNED));
+    else snprintf(progress, sizeof(progress), T(S_EXP_WALK_PROGRESS), pet.expeditionSteps, Pet::expeditionStepGoal(pet.expeditionMinutes));
+    gfx->setTextSize(1); gfx->setTextColor(pet.expeditionWalkBonusEarned() ? UI_BAR_OK : UI_INK);
+    gfx->setCursor(CX - (int)strlen(progress) * 3, 160); gfx->print(progress);
+  }
   drawExpeditionItem(50, 200, EXP_ITEM_SNACK);
   drawExpeditionItem(244, 200, EXP_ITEM_ENERGY);
   drawExpeditionItem(50, 264, EXP_ITEM_CARE);
@@ -4865,7 +4877,7 @@ void expeditionCardTap(int16_t x, int16_t y) {
   if (!pet.expeditionActive(nowEpoch) && y >= 100 && y <= 154) {
     const uint8_t minutes[3] = { 15, 30, 60 };
     int idx = x >= 50 && x <= 156 ? 0 : x >= 180 && x <= 286 ? 1 : x >= 310 && x <= 416 ? 2 : -1;
-    if (idx >= 0 && pet.startExpedition(minutes[idx], nowEpoch, (uint8_t)random(100), (uint8_t)random(4), expeditionSiteChoice)) {
+    if (idx >= 0 && pet.startExpedition(minutes[idx], nowEpoch, (uint8_t)random(100), (uint8_t)random(4), expeditionSiteChoice, (uint8_t)random(100))) {
       sfxPlay(SFX_EXPEDITION_START);
       cardDirty = true;
       lockTouchBrief();

@@ -164,6 +164,11 @@ public:
   uint8_t expeditionRewardItem = EXP_ITEM_NONE;
   uint8_t expeditionSite = EXP_SITE_NONE;
   uint8_t hoennSealMask = 0;
+  uint8_t expeditionMinutes = 0;
+  uint16_t expeditionSteps = 0;
+  uint8_t expeditionBonusItem = EXP_ITEM_NONE;
+  static uint16_t expeditionStepGoal(uint8_t minutes);
+  bool expeditionWalkBonusEarned() const;
   // Schrittfortschritt des Spielers: heute wird am RTC-Tag zurueckgesetzt,
   // der Gesamtwert bleibt ueber Eier und neue Pokemon erhalten.
   uint32_t stepsToday = 0;
@@ -192,7 +197,7 @@ public:
   bool applyPetEvent(uint8_t eventType);
   uint8_t interactPet(bool eveningBonus);
   bool applyShake();
-  uint8_t applyWalk(uint16_t steps);
+  uint8_t applyWalk(uint16_t steps, uint32_t nowEpoch = 0);
   uint32_t stepGoal(uint8_t index) const;
   bool stepGoalComplete(uint8_t index) const;
   uint8_t stepTrailRank() const;
@@ -220,7 +225,7 @@ public:
   bool canStartExpedition(uint8_t minutes, uint32_t nowEpoch) const;
   uint8_t expeditionTrainingChance(uint8_t minutes) const;
   bool startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, uint8_t itemRoll = 0,
-                       ExpeditionSite site = EXP_SITE_COAST);
+                       ExpeditionSite site = EXP_SITE_COAST, uint8_t bonusRoll = 99);
   ExpeditionItem claimExpedition(uint32_t nowEpoch);
   bool useExpeditionItem(ExpeditionItem item, int8_t trainingStat = -1);
   uint8_t hoennSealCount() const;

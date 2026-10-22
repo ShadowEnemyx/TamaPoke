@@ -1119,7 +1119,78 @@ static void testSaveBackupRoundTripAndValidation() {
   EXPECT_TRUE(!restored.importBackup(blob, size));
 }
 
+static void testExpeditionWalkingBonus() {
+  const uint8_t durations[] = {15, 30, 60};
+  const uint16_t goals[] = {250, 500, 1000};
+  for (uint8_t d=0; d<3; ++d) for (uint8_t site=0; site<3; ++site) {
+    Pet p=hatchedPet(252); p.energy=100;
+    p.applyWalk(30, 999);
+    EXPECT_TRUE(p.startExpedition(durations[d], 1000, 99, 3, (ExpeditionSite)site, 99));
+    EXPECT_EQ(p.expeditionSteps, 0);
+    p.applyWalk(5, 999); EXPECT_EQ(p.expeditionSteps, 0);
+    p.applyWalk(goals[d]-1, 1001); EXPECT_TRUE(!p.expeditionWalkBonusEarned());
+    p.applyWalk(1, p.expeditionEndEpoch-1); EXPECT_TRUE(p.expeditionWalkBonusEarned());
+    p.applyWalk(30, p.expeditionEndEpoch); EXPECT_EQ(p.expeditionSteps, goals[d]);
+    uint8_t bytes[Pet::BACKUP_MAX_BYTES]; size_t n=p.exportBackup(bytes,sizeof(bytes));
+    Pet restored; EXPECT_TRUE(restored.importBackup(bytes,n));
+    EXPECT_EQ(restored.expeditionSteps, goals[d]); EXPECT_EQ(restored.expeditionBonusItem,p.expeditionBonusItem);
+    restored.expeditionSteps=0; restored.begin();
+    EXPECT_EQ(restored.expeditionSteps, goals[d]);
+    auto bonus=(ExpeditionItem)p.expeditionBonusItem;
+    uint8_t before=p.itemCounts[bonus];
+    EXPECT_TRUE(p.claimExpedition(p.expeditionEndEpoch)!=EXP_ITEM_NONE);
+    EXPECT_TRUE(p.itemCounts[bonus]>before); EXPECT_EQ(p.expeditionMinutes,0);
+    EXPECT_EQ(p.claimExpedition(99999), EXP_ITEM_NONE);
+  }
+  for (uint8_t d=0;d<3;++d) {
+    uint8_t threshold=d==0?10:d==1?15:20;
+    for(uint8_t roll : {uint8_t(threshold-1),threshold}) {
+      Pet p=hatchedPet(252); p.energy=100;
+      EXPECT_TRUE(p.startExpedition(durations[d],1000,99,3,EXP_SITE_COAST,roll));
+      EXPECT_EQ(p.expeditionBonusItem,roll<threshold?EXP_ITEM_TRAIN:EXP_ITEM_ENERGY);
+    }
+  }
+  Pet p=hatchedPet(252);p.energy=100;
+  EXPECT_TRUE(p.startExpedition(15,86300,99,3,EXP_SITE_VOLCANO,99));
+  p.applyWalk(125,86350);p.lastSeenEpoch=86450;p.applyWalk(125,86450);
+  EXPECT_EQ(p.expeditionSteps,250);
+  p.trAtk=p.trDef=p.trSpe=100;p.energy=90;
+  EXPECT_TRUE(p.claimExpedition(p.expeditionEndEpoch)!=EXP_ITEM_NONE); EXPECT_EQ(p.energy,100);
+
+  // Public 1.36.1 snapshot had no Hoenn fields and no appended walking fields.
+  uint8_t bytes[Pet::BACKUP_MAX_BYTES];size_t n=p.exportBackup(bytes,sizeof(bytes));
+  std::vector<uint8_t> legacy(bytes,bytes+n-4);
+  legacy.erase(legacy.begin()+35,legacy.begin()+37);
+  legacy[4]=1;legacy[5]=0;legacy[6]=legacy.size()&255;legacy[7]=legacy.size()>>8;
+  memset(legacy.data()+8,0,4);uint32_t hash=2166136261UL;
+  for(uint8_t b:legacy)hash=(hash^b)*16777619UL;
+  memcpy(legacy.data()+8,&hash,4);Pet old;
+  EXPECT_TRUE(old.importBackup(legacy.data(),legacy.size()));EXPECT_EQ(old.expeditionMinutes,0);
+  legacy.back()^=1;EXPECT_TRUE(!old.importBackup(legacy.data(),legacy.size()));
+  Pet late=hatchedPet(252);late.energy=100;
+  EXPECT_TRUE(late.startExpedition(15,1000,99,3,EXP_SITE_COAST,99));
+  late.applyWalk(500,1900);EXPECT_EQ(late.expeditionSteps,0);
+  late.applyWalk(250,1899);late.itemCounts[EXP_ITEM_ENERGY]=EXP_ITEM_MAX;late.energy=95;
+  EXPECT_TRUE(late.claimExpedition(1900)!=EXP_ITEM_NONE);EXPECT_EQ(late.energy,100);
+  // A newer/unknown backup version is rejected even with a correct checksum.
+  n=p.exportBackup(bytes,sizeof(bytes)); bytes[4]=3; bytes[5]=0;
+  memset(bytes+8,0,4); hash=2166136261UL;
+  for(size_t i=0;i<n;++i) hash=(hash^bytes[i])*16777619UL;
+  memcpy(bytes+8,&hash,4);
+  EXPECT_TRUE(!old.importBackup(bytes,n));
+  Pet blocked=hatchedPet(252); blocked.energy=100;
+  EXPECT_TRUE(blocked.startExpedition(15,1000,99,3,EXP_SITE_COAST,99));
+  blocked.applyWalk(250,1100);
+  blocked.itemCounts[blocked.expeditionRewardItem]=EXP_ITEM_MAX;
+  EXPECT_EQ(blocked.claimExpedition(1900),EXP_ITEM_NONE);
+  EXPECT_TRUE(blocked.expeditionWalkBonusEarned());
+  blocked.itemCounts[blocked.expeditionRewardItem]--;
+  EXPECT_TRUE(blocked.claimExpedition(1900)!=EXP_ITEM_NONE);
+  EXPECT_EQ(blocked.claimExpedition(1900),EXP_ITEM_NONE);
+}
+
 int main() {
+  testExpeditionWalkingBonus();
   testEggHatchesChosenStarter();
   testBattleStatsUseBaseGenesLevelAndTraining();
   testEvolutionRequiresLevelAndHealthyStats();

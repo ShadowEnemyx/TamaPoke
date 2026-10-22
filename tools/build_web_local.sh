@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-VERSION="1.36.0-gen3-local"
+VERSION="1.36.2-hoenn-walk-local"
 CHECK_ONLY=0
 
 if [[ ${1:-} == "--check" ]]; then
@@ -20,7 +20,7 @@ if ! grep -Eq '^#define DEX_COUNT 386$' dex.h; then
   echo "Refusing local build: dex.h must contain exactly 386 species." >&2
   exit 1
 fi
-if ! grep -q '#define FW_VERSION "1.36.0-gen3-local"' TamaPoke.ino; then
+if ! grep -q '#define FW_VERSION "1.36.2-hoenn-walk-local"' TamaPoke.ino; then
   echo "Refusing local build: local firmware version does not match $VERSION." >&2
   exit 1
 fi

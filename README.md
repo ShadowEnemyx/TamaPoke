@@ -94,6 +94,10 @@ the separate `1.75C` is a different board.
 
 ## Developer builds
 
+Local expedition walking candidate: `1.36.2-hoenn-walk-local`. It adds
+250/500/1,000-step tour goals and one optional extra item. The public installer
+remains `1.36.1`; see [local test notes](HOENN_WALK_LOCAL.md) for hardware checks.
+
 Board profile:
 
 ```bash

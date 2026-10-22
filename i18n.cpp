@@ -67,7 +67,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JUGAR", "Nv.%u", "R%u", "C:%u A:%u", "NUEVO", "FLASH/NO",
     "BUENOS DIAS",
     "PASOS", "HOY %lu", "TOTAL %lu", "RANGO RUTA %u",
-    "SHINY 1/%u", "CAPTURA +%u%%", "PASO %lu", "BONUS DE PASOS", "COSTA", "VOLCAN", "BOSQUE", "SELLOS %u/3",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASO %lu", "BONUS DE PASOS", "COSTA", "VOLCAN", "BOSQUE", "SELLOS %u/3", "PASOS %u/%u", "BONUS GANADO",
   },
   // ---------------- EN ----------------
   {
@@ -128,7 +128,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "PLAY", "Lv.%u", "R%u", "R:%u C:%u", "NEW", "FLASH/NO",
     "GOOD MORN.",
     "STEPS", "TODAY %lu", "TOTAL %lu", "TRAIL RANK %u",
-    "SHINY 1/%u", "CATCH +%u%%", "STEP %lu", "TRAIL REWARD", "COAST", "VOLCANO", "FOREST", "SEALS %u/3",
+    "SHINY 1/%u", "CATCH +%u%%", "STEP %lu", "TRAIL REWARD", "COAST", "VOLCANO", "FOREST", "SEALS %u/3", "STEPS %u/%u", "WALK BONUS EARNED",
   },
   // ---------------- FR ----------------
   {
@@ -189,7 +189,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JOUER", "Niv.%u", "M%u", "E:%u C:%u", "NOUVEAU", "FLASH/NON",
     "BON MATIN",
     "PAS", "AUJOURD'HUI %lu", "TOTAL %lu", "RANG TRAIL %u",
-    "SHINY 1/%u", "CAPTURE +%u%%", "PAS %lu", "BONUS DE PAS", "COTE", "VOLCAN", "FORET", "SCEAUX %u/3",
+    "SHINY 1/%u", "CAPTURE +%u%%", "PAS %lu", "BONUS DE PAS", "COTE", "VOLCAN", "FORET", "SCEAUX %u/3", "PAS %u/%u", "BONUS DE MARCHE",
   },
   // ---------------- DE ----------------
   {
@@ -250,7 +250,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "SPIELEN", "Lv.%u", "R%u", "A:%u G:%u", "NEU", "FLASH/NEIN",
     "GUTEN MORGEN",
     "SCHRITTE", "HEUTE %lu", "GESAMT %lu", "TRAIL-RANG %u",
-    "SHINY 1/%u", "FANG +%u%%", "SCHRITT %lu", "SCHRITT-BONUS", "KUESTE", "VULKAN", "WALD", "SIEGEL %u/3",
+    "SHINY 1/%u", "FANG +%u%%", "SCHRITT %lu", "SCHRITT-BONUS", "KUESTE", "VULKAN", "WALD", "SIEGEL %u/3", "SCHRITTE %u/%u", "GEHBONUS VERDIENT",
   },
   // ---------------- IT ----------------
   {
@@ -311,7 +311,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GIOCA", "Lv.%u", "T%u", "A:%u P:%u", "NUOVO", "FLASH/NO",
     "BUONGIORNO",
     "PASSI", "OGGI %lu", "TOTALE %lu", "RANGO TRAIL %u",
-    "SHINY 1/%u", "PRESA +%u%%", "PASSO %lu", "BONUS PASSI", "COSTA", "VULCANO", "BOSCO", "SIGILLI %u/3",
+    "SHINY 1/%u", "PRESA +%u%%", "PASSO %lu", "BONUS PASSI", "COSTA", "VULCANO", "BOSCO", "SIGILLI %u/3", "PASSI %u/%u", "BONUS OTTENUTO",
   },
   // ---------------- PT ----------------
   {
@@ -372,7 +372,7 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "JOGAR", "Niv.%u", "R%u", "C:%u A:%u", "NOVO", "FLASH/NAO",
     "BOM DIA",
     "PASSOS", "HOJE %lu", "TOTAL %lu", "RANK TRILHA %u",
-    "SHINY 1/%u", "CAPTURA +%u%%", "PASSO %lu", "BONUS PASSOS", "COSTA", "VULCAO", "FLORESTA", "SELOS %u/3",
+    "SHINY 1/%u", "CAPTURA +%u%%", "PASSO %lu", "BONUS PASSOS", "COSTA", "VULCAO", "FLORESTA", "SELOS %u/3", "PASSOS %u/%u", "BONUS GANHO",
   },
 };
 

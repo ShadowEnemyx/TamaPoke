@@ -5,7 +5,7 @@
 
 namespace {
 constexpr uint32_t BACKUP_MAGIC = 0x314B4254UL; // TBK1
-constexpr uint16_t BACKUP_VERSION = 1;
+constexpr uint16_t BACKUP_VERSION = 2;
 struct __attribute__((packed)) PetBackup {
   uint32_t magic; uint16_t version, length; uint32_t checksum;
   uint8_t fullness, joy, energy, hygiene, poops, weight, geneAtk, geneDef, geneSpe, trAtk, trDef, trSpe;
@@ -15,6 +15,9 @@ struct __attribute__((packed)) PetBackup {
   uint16_t streak, bestStreak, medals, totalMedals, lastMilestone, gameHi, strHi, catchHi, memoHi, cleanHi, typeHi, battleWins, battleLosses, battleStreak, bestBattleStreak, dexRewardMask;
   uint8_t dailyGoalType[DAILY_GOAL_COUNT], dailyGoalProgress[DAILY_GOAL_COUNT], itemCounts[EXP_ITEM_COUNT];
   uint8_t dexReg[DEX_BITMAP_BYTES], dexShinyReg[DEX_BITMAP_BYTES], dexCaught[DEX_BITMAP_BYTES]; char nick[12];
+  uint8_t expeditionMinutes;
+  uint16_t expeditionSteps;
+  uint8_t expeditionBonusItem;
 };
 static_assert(sizeof(PetBackup) <= Pet::BACKUP_MAX_BYTES, "backup buffer too small");
 uint32_t backupChecksum(const uint8_t *data, size_t length) { uint32_t v=2166136261UL; for(size_t i=0;i<length;i++) v=(v^data[i])*16777619UL; return v; }
@@ -261,12 +264,32 @@ size_t Pet::exportBackup(uint8_t *out, size_t capacity) const {
   b.speciesId=speciesId;b.eggTarget=eggTarget;b.ageMinutes=ageMinutes;b.lastSeenEpoch=lastSeenEpoch;b.lastCareDay=lastCareDay;b.lastPetInteractMinute=lastPetInteractMinute;b.dailyGoalDay=dailyGoalDay;b.expeditionEndEpoch=expeditionEndEpoch;b.stepDay=stepDay;b.stepsToday=stepsToday;b.stepsTotal=stepsTotal;b.lastMorningDay=lastMorningDay;b.shakeDay=shakeDay;b.walkDay=walkDay;b.walkHour=walkHour;b.evoDeclinedAge=evoDeclinedAge;
   b.streak=streak;b.bestStreak=bestStreak;b.medals=medals;b.totalMedals=totalMedals;b.lastMilestone=lastMilestone;b.gameHi=gameHi;b.strHi=strHi;b.catchHi=catchHi;b.memoHi=memoHi;b.cleanHi=cleanHi;b.typeHi=typeHi;b.battleWins=battleWins;b.battleLosses=battleLosses;b.battleStreak=battleStreak;b.bestBattleStreak=bestBattleStreak;b.dexRewardMask=dexRewardMask;
   memcpy(b.dailyGoalType,dailyGoalType,sizeof(b.dailyGoalType));memcpy(b.dailyGoalProgress,dailyGoalProgress,sizeof(b.dailyGoalProgress));memcpy(b.itemCounts,itemCounts,sizeof(b.itemCounts));memcpy(b.dexReg,dexReg,sizeof(b.dexReg));memcpy(b.dexShinyReg,dexShinyReg,sizeof(b.dexShinyReg));memcpy(b.dexCaught,dexCaught,sizeof(b.dexCaught));memcpy(b.nick,nick,sizeof(b.nick));
+  b.expeditionMinutes=expeditionMinutes; b.expeditionSteps=expeditionSteps; b.expeditionBonusItem=expeditionBonusItem;
   b.checksum=0;b.checksum=backupChecksum(reinterpret_cast<const uint8_t*>(&b),sizeof(b));memcpy(out,&b,sizeof(b));return sizeof(b);
 }
 
 bool Pet::importBackup(const uint8_t *data, size_t length) {
-  if (!data || length != sizeof(PetBackup)) return false; PetBackup b; memcpy(&b,data,sizeof(b)); uint32_t sum=b.checksum;b.checksum=0;
+  constexpr size_t oldSize = sizeof(PetBackup) - 4;
+  if (!data || (length != sizeof(PetBackup) && length != oldSize && length != oldSize - 2)) return false;
+  uint8_t raw[sizeof(PetBackup)] = {}; memcpy(raw, data, length);
+  uint32_t sum; memcpy(&sum, raw + 8, 4); memset(raw + 8, 0, 4);
+  uint16_t version, storedLength; memcpy(&version, raw + 4, 2); memcpy(&storedLength, raw + 6, 2);
+  if (storedLength != length || sum != backupChecksum(raw, length) ||
+      (version == 2 ? length != sizeof(PetBackup) : version != 1 || length == sizeof(PetBackup))) return false;
+  PetBackup b = {};
+  if (length == oldSize - 2) {
+    const size_t split = offsetof(PetBackup, expeditionSite);
+    memcpy(&b, raw, split);
+    memcpy(reinterpret_cast<uint8_t*>(&b) + split + 2, raw + split, length - split);
+    b.expeditionSite = EXP_SITE_NONE;
+  } else memcpy(&b, raw, length);
+  if (version == 1) { b.expeditionMinutes=0; b.expeditionSteps=0; b.expeditionBonusItem=EXP_ITEM_NONE; }
+  b.version=BACKUP_VERSION; b.length=sizeof(b); b.checksum=0;
+  sum=backupChecksum(reinterpret_cast<const uint8_t*>(&b),sizeof(b));
+  if (b.expeditionMinutes && (!expeditionStepGoal(b.expeditionMinutes) || b.expeditionBonusItem >= EXP_ITEM_COUNT || b.expeditionSteps > expeditionStepGoal(b.expeditionMinutes))) return false;
   if (b.magic!=BACKUP_MAGIC || b.version!=BACKUP_VERSION || b.length!=sizeof(b) || sum!=backupChecksum(reinterpret_cast<const uint8_t*>(&b),sizeof(b)) || b.speciesId < -1 || b.speciesId > DEX_COUNT || b.eggTarget < 1 || b.eggTarget > DEX_COUNT || (b.expeditionRewardItem != EXP_ITEM_NONE && b.expeditionRewardItem >= EXP_ITEM_COUNT) || (b.expeditionSite != EXP_SITE_NONE && b.expeditionSite >= EXPEDITION_SITE_COUNT)) return false;
+  expeditionMinutes=b.expeditionMinutes; expeditionSteps=b.expeditionSteps; expeditionBonusItem=b.expeditionBonusItem;
+  prefs.putBool("init", true);
   fullness=b.fullness;joy=b.joy;energy=b.energy;hygiene=b.hygiene;poops=b.poops;weight=b.weight;geneAtk=b.geneAtk;geneDef=b.geneDef;geneSpe=b.geneSpe;trAtk=b.trAtk;trDef=b.trDef;trSpe=b.trSpe;berryKnown=b.berryKnown;shiny=b.shiny;eggShiny=b.eggShiny;starterPick=b.starterPick;eggTaps=b.eggTaps;careMistakes=b.careMistakes;lastEnd=b.lastEnd;bond=b.bond;collectionFrame=b.collectionFrame;dailyGoalDone=b.dailyGoalDone;expeditionRewardItem=b.expeditionRewardItem;expeditionSite=b.expeditionSite;hoennSealMask=b.hoennSealMask & 7;stepDailyRewardMask=b.stepDailyRewardMask;stepMilestoneMask=b.stepMilestoneMask;pendingStepRewardMask=b.pendingStepRewardMask;shakeCountToday=b.shakeCountToday;walkJoyToday=b.walkJoyToday;walkJoyHour=b.walkJoyHour;walkBondToday=b.walkBondToday;evoDeclinedLv=b.evoDeclinedLv;
   speciesId=b.speciesId;eggTarget=b.eggTarget;ageMinutes=b.ageMinutes;lastSeenEpoch=b.lastSeenEpoch;lastCareDay=b.lastCareDay;lastPetInteractMinute=b.lastPetInteractMinute;dailyGoalDay=b.dailyGoalDay;expeditionEndEpoch=b.expeditionEndEpoch;stepDay=b.stepDay;stepsToday=b.stepsToday;stepsTotal=b.stepsTotal;lastMorningDay=b.lastMorningDay;shakeDay=b.shakeDay;walkDay=b.walkDay;walkHour=b.walkHour;evoDeclinedAge=b.evoDeclinedAge;streak=b.streak;bestStreak=b.bestStreak;medals=b.medals;totalMedals=b.totalMedals;lastMilestone=b.lastMilestone;gameHi=b.gameHi;strHi=b.strHi;catchHi=b.catchHi;memoHi=b.memoHi;cleanHi=b.cleanHi;typeHi=b.typeHi;battleWins=b.battleWins;battleLosses=b.battleLosses;battleStreak=b.battleStreak;bestBattleStreak=b.bestBattleStreak;dexRewardMask=b.dexRewardMask;
   memcpy(dailyGoalType,b.dailyGoalType,sizeof(dailyGoalType));memcpy(dailyGoalProgress,b.dailyGoalProgress,sizeof(dailyGoalProgress));memcpy(itemCounts,b.itemCounts,sizeof(itemCounts));memcpy(dexReg,b.dexReg,sizeof(dexReg));memcpy(dexShinyReg,b.dexShinyReg,sizeof(dexShinyReg));memcpy(dexCaught,b.dexCaught,sizeof(dexCaught));memcpy(nick,b.nick,sizeof(nick));nick[sizeof(nick)-1]=0;ceremony=CER_NONE;if (collectionFrame >= unlockedCollectionFrameCount()) collectionFrame=0;save();return true;
@@ -1132,8 +1155,15 @@ void Pet::applyPendingStepRewards() {
   pendingSave = true;
 }
 
-uint8_t Pet::applyWalk(uint16_t steps) {
+uint8_t Pet::applyWalk(uint16_t steps, uint32_t nowEpoch) {
   if (!steps) return 0;
+  if (!nowEpoch) nowEpoch = lastSeenEpoch;
+  uint16_t goal = expeditionStepGoal(expeditionMinutes);
+  if (goal && expeditionActive(nowEpoch) && nowEpoch >= expeditionEndEpoch - (uint32_t)expeditionMinutes * 60UL) {
+    uint32_t progress = (uint32_t)expeditionSteps + steps;
+    expeditionSteps = progress > goal ? goal : (uint16_t)progress;
+    pendingSave = true;
+  }
   ensureStepDay();
 
   uint32_t oldToday = stepsToday;
@@ -1365,7 +1395,16 @@ ExpeditionItem Pet::expeditionRewardFor(ExpeditionSite site, uint8_t minutes, ui
   return EXP_ITEM_NONE;
 }
 
-bool Pet::startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, uint8_t itemRoll, ExpeditionSite site) {
+uint16_t Pet::expeditionStepGoal(uint8_t minutes) {
+  return minutes == 15 ? 250 : minutes == 30 ? 500 : minutes == 60 ? 1000 : 0;
+}
+
+bool Pet::expeditionWalkBonusEarned() const {
+  uint16_t goal = expeditionStepGoal(expeditionMinutes);
+  return goal && expeditionSteps >= goal;
+}
+
+bool Pet::startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, uint8_t itemRoll, ExpeditionSite site, uint8_t bonusRoll) {
   if (!canStartExpedition(minutes, nowEpoch) || site >= EXPEDITION_SITE_COUNT) return false;
 
   uint8_t cost = expeditionEnergyCost(minutes);
@@ -1376,6 +1415,11 @@ bool Pet::startExpedition(uint8_t minutes, uint32_t nowEpoch, uint8_t luckRoll, 
   expeditionEndEpoch = nowEpoch + (uint32_t)minutes * 60UL;
   expeditionRewardItem = reward;
   expeditionSite = site;
+  expeditionMinutes = minutes;
+  expeditionSteps = 0;
+  uint8_t chance = minutes == 15 ? 10 : minutes == 30 ? 15 : 20;
+  expeditionBonusItem = site == EXP_SITE_VOLCANO || bonusRoll < chance ? EXP_ITEM_TRAIN :
+                        site == EXP_SITE_COAST ? EXP_ITEM_ENERGY : EXP_ITEM_CARE;
   save();
   return true;
 }
@@ -1385,6 +1429,13 @@ ExpeditionItem Pet::claimExpedition(uint32_t nowEpoch) {
       !canReceiveExpeditionItem((ExpeditionItem)expeditionRewardItem)) return EXP_ITEM_NONE;
   ExpeditionItem reward = (ExpeditionItem)expeditionRewardItem;
   itemCounts[reward]++;
+  if (expeditionWalkBonusEarned()) {
+    if (canReceiveExpeditionItem((ExpeditionItem)expeditionBonusItem)) itemCounts[expeditionBonusItem]++;
+    else energy = clamp100((int)energy + 10);
+  }
+  expeditionMinutes = 0;
+  expeditionSteps = 0;
+  expeditionBonusItem = EXP_ITEM_NONE;
   if (expeditionSite < EXPEDITION_SITE_COUNT) hoennSealMask |= (uint8_t)(1 << expeditionSite);
   expeditionEndEpoch = 0;
   expeditionRewardItem = EXP_ITEM_NONE;
@@ -1533,6 +1584,9 @@ void Pet::save() {
   prefs.putUChar("exrwd", expeditionRewardItem);
   prefs.putUChar("exsite", expeditionSite);
   prefs.putUChar("hseal", hoennSealMask & 7);
+  prefs.putUChar("exmins", expeditionMinutes);
+  prefs.putUShort("exsteps", expeditionSteps);
+  prefs.putUChar("exbonus", expeditionBonusItem);
   prefs.putUInt("stday", stepDay);
   prefs.putUInt("stoday", stepsToday);
   prefs.putUInt("stotal", stepsTotal);
@@ -1637,6 +1691,12 @@ void Pet::load() {
   expeditionRewardItem = prefs.getUChar("exrwd", EXP_ITEM_NONE);
   expeditionSite = prefs.getUChar("exsite", EXP_SITE_NONE);
   hoennSealMask = prefs.getUChar("hseal", 0) & 7;
+  expeditionMinutes = prefs.getUChar("exmins", 0);
+  expeditionSteps = prefs.getUShort("exsteps", 0);
+  expeditionBonusItem = prefs.getUChar("exbonus", EXP_ITEM_NONE);
+  if (!expeditionStepGoal(expeditionMinutes) || expeditionBonusItem >= EXP_ITEM_COUNT) {
+    expeditionMinutes=0; expeditionSteps=0; expeditionBonusItem=EXP_ITEM_NONE;
+  } else if (expeditionSteps > expeditionStepGoal(expeditionMinutes)) expeditionSteps=expeditionStepGoal(expeditionMinutes);
   stepDay = prefs.getUInt("stday", 0);
   stepsToday = prefs.getUInt("stoday", 0);
   stepsTotal = prefs.getUInt("stotal", 0);
@@ -1653,7 +1713,7 @@ void Pet::load() {
   walkBondToday = prefs.getUChar("wbond", 0);
   evoDeclinedLv = prefs.getUChar("edlv", 0);
   evoDeclinedAge = prefs.getUInt("edage", 0);
-  if (expeditionEndEpoch == 0 || expeditionRewardItem >= EXP_ITEM_COUNT || expeditionSite >= EXPEDITION_SITE_COUNT) {
+  if (expeditionEndEpoch == 0 || expeditionRewardItem >= EXP_ITEM_COUNT) {
     expeditionEndEpoch = 0;
     expeditionRewardItem = EXP_ITEM_NONE;
     expeditionSite = EXP_SITE_NONE;

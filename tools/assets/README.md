@@ -1,53 +1,52 @@
-# Assets de TamaPoke — de dónde salen los sprites
+# TamaPoke assets — where the sprites come from
 
-Los sprites NO se editan a mano ni se guardan aquí: se **descargan de sus
-fuentes y se empaquetan** con los scripts de `tools/`. Esta carpeta es solo
-documentación del flujo (antes contenía una propuesta de importación por PNG
-que quedó obsoleta).
+Sprites are NOT edited by hand or stored here: they are **downloaded from their
+sources and packed** with the scripts in `tools/`. This folder only documents
+the workflow (it used to hold an obsolete PNG-import proposal).
 
-## El flujo real
+## The actual workflow
 
-Dos formatos conviven en la microSD (`/mons/`), ambos derivados de PMD SpriteCollab:
+Two formats coexist on the microSD (`/mons/`), both derived from PMD SpriteCollab:
 
-| Formato | Script | Fuente | Qué es |
+| Format | Script | Source | What it is |
 |---|---|---|---|
-| **TPK2** `pNNN.bin` / `psNNN.bin` | `pack_pmd.py` | [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) (CC BY-NC) | Animaciones multi-acción (idle, walk, sleep, eat, hurt, attack, gestos) — usadas en **todo**: pantalla principal y **Pokédex / galería** |
-| **TPTH** `thumbs.bin` | `make_thumbs.py` | (deriva de los TPK2) | Miniaturas 40×40 de la galería |
+| **TPK2** `pNNN.bin` / `psNNN.bin` | `pack_pmd.py` | [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) (CC BY-NC) | Multi-action animations (idle, walk, sleep, eat, hurt, attack, gestures) — used **everywhere**: main screen and **Pokédex / gallery** |
+| **TPTH** `thumbs.bin` | `make_thumbs.py` | (derived from the TPK2 files) | 40×40 gallery thumbnails |
 
 ```bash
-python3 tools/pack_pmd.py     # todas las especies incluidas + shiny -> tools/sdcard/mons/p[s]NNN.bin
+python3 tools/pack_pmd.py     # all included species + shiny -> tools/sdcard/mons/p[s]NNN.bin
 python3 tools/make_thumbs.py  # -> tools/sdcard/mons/thumbs.bin
-python3 tools/send_sd.py      # envia todo a la SD de la placa por USB
+python3 tools/send_sd.py      # sends everything to the board's SD card over USB
 ```
 
-Para el instalador Gen 3 no existe un unico `sprites-gen3-full.pak`: el flujo
-completo envia primero `web/sprites.pak` (#1–251) y despues
-`web/sprites-gen3-update.pak` (#252–386 y el indice de 386 miniaturas). Asi
-ningun archivo alojado en GitHub supera el limite de 100 MB.
+For the Gen 3 installer there is no single `sprites-gen3-full.pak`: the complete
+flow first sends `web/sprites.pak` (#1–251) and then
+`web/sprites-gen3-update.pak` (#252–386 and the 386-entry thumbnail index). This
+keeps every GitHub-hosted file below the 100 MB limit.
 
-(`s` = variante shiny. `pack_pmd.py` acepta números de Pokédex sueltos,
-p. ej. `python3 tools/pack_pmd.py 7 25`.)
+(`s` = shiny variant. `pack_pmd.py` also accepts individual Pokédex numbers,
+e.g. `python3 tools/pack_pmd.py 7 25`.)
 
-## Formatos binarios
+## Binary formats
 
-Definidos en las cabeceras de cada empaquetador y parseados en `sdmon.cpp`:
+Defined in the header of each packer and parsed in `sdmon.cpp`:
 
 - **TPK1** (`SdMon`): `"TPK1"`, `u16 w,h,frames,frameMs`, `u16 palCount`,
-  `u16 pal[]` (RGB565), `u8 data[frames*w*h]` (índice de paleta, `0xFF`
-  transparente).
-- **TPK2** (`PmdMon`): `"TPK2"`, `u8 nActs`, `u16 palCount`, `u16 pal[]`, y por
-  acción `u8 id,w,h,nFrames` + `u16 ms[nFrames]` + `u8 data[w*h*nFrames]`.
-- **TPTH** (`SdThumbs`): `"TPTH"`, `u16 count`, `u32 offset[count]`, y por
-  miniatura `u8 w,h,palCount` + `u16 pal[]` + `u8 data[w*h]`.
+  `u16 pal[]` (RGB565), `u8 data[frames*w*h]` (palette index, `0xFF`
+  transparent).
+- **TPK2** (`PmdMon`): `"TPK2"`, `u8 nActs`, `u16 palCount`, `u16 pal[]`, and per
+  action `u8 id,w,h,nFrames` + `u16 ms[nFrames]` + `u8 data[w*h*nFrames]`.
+- **TPTH** (`SdThumbs`): `"TPTH"`, `u16 count`, `u32 offset[count]`, and per
+  thumbnail `u8 w,h,palCount` + `u16 pal[]` + `u8 data[w*h]`.
 
-El firmware valida tamaños al cargar, así que un `.bin` truncado se rechaza sin
-romper nada.
+The firmware validates sizes on load, so a truncated `.bin` is rejected without
+breaking anything.
 
-## Caché de descargas
+## Download cache
 
-`pack_pmd.py` cachea los PNG originales de SpriteCollab en `tools/pmd_cache/`
-(ignorado por git, regenerable). Los `.bin` finales sí se versionan en
-`tools/sdcard/mons/` como respaldo.
+`pack_pmd.py` caches the original SpriteCollab PNGs in `tools/pmd_cache/`
+(git-ignored, regenerable). The final `.bin` files are versioned in
+`tools/sdcard/mons/` as a backup.
 
-> Ver [CREDITS.md](../../CREDITS.md) sobre la procedencia y los términos de los
-> sprites. Son de terceros: no redistribuir con fines comerciales.
+> See [CREDITS.md](../../CREDITS.md) for the origin and terms of the sprites.
+> They are third-party material: do not redistribute them commercially.

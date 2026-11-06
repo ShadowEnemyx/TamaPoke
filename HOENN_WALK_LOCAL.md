@@ -19,7 +19,10 @@ Save backup version 2 includes walking progress. Public 1.36.1 backups and
 the previous local Hoenn backups are accepted; existing tours keep their
 main reward without a retrospective walking bonus.
 
-## Local hardware acceptance (still pending)
+## Local hardware acceptance (reported done)
+
+The owner reported on 2026-11-06 that this build has been running on hardware
+for several weeks. The checklist below is kept as the reference procedure.
 
 Run `bash tools/build_web_local.sh`, serve `web` on localhost and flash using
 `/dev.html`. Leave Erase device unchecked. Sprites do not need reinstalling.

@@ -1,16 +1,18 @@
 # TamaPoke development progress
 
-Stand: 2026-09-07
+Stand: 2026-11-05
 
 ## Current state
 
 - Active branch: `local/full-gen3`; rollback tag: `local-before-gen3`.
 - The tested Gen‑3 feature commit `da8bfa8` is already on `fork/main`.
-- The hosted installer serves public Gen 3 `1.36.0` with #1–386.
+- The hosted installer serves public Gen 3 `1.36.1` with #1–386.
 - GitHub Pages is switched to the Gen‑3 installer and the matching GitHub release
   is published.
-- Local debug build: `1.36.0-gen3-local` with `TAMAPOKE_LOCAL_TEST`.
-- Public release: `1.36.0` with `TAMAPOKE_GEN3_RELEASE`, without local debug
+- Local debug build: `1.36.2-hoenn-walk-local` with `TAMAPOKE_LOCAL_TEST`
+  (Hoenn walking expeditions, hardware-tested by the owner for several weeks; see
+  `HOENN_WALK_LOCAL.md`).
+- Public release: `1.36.1` with `TAMAPOKE_GEN3_RELEASE`, without local debug
   commands.
 
 ## Completed features

@@ -39,7 +39,7 @@
 #ifdef TAMAPOKE_LOCAL_TEST
 #define FW_VERSION "1.36.2-hoenn-walk-local"
 #elif defined(TAMAPOKE_GEN3_RELEASE)
-#define FW_VERSION "1.36.1"
+#define FW_VERSION "1.36.2"
 #else
 #define FW_VERSION "1.35.3-soft-step"
 #endif

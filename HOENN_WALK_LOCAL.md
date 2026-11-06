@@ -1,7 +1,7 @@
 # Hoenn walking expedition candidate
 
-Local firmware: `1.36.2-hoenn-walk-local`. Public installer: `1.36.1`.
-Nothing in this candidate is published automatically.
+Local firmware: `1.36.2-hoenn-walk-local`. Public installer: `1.36.2` (same features as a debug-free release build).
+The debug build stays local; the public release is published only on request.
 
 ## Walking bonus
 

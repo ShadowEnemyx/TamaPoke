@@ -12,7 +12,7 @@ das Waveshare ESP32-S3 Touch AMOLED 1.75. Es ist ein Fork von
 - Ausgangs-Firmware-Stand: `1.32.1-caught-mark`
 - Lokaler Testbuild: `1.36.2-hoenn-walk-local` (über `TAMAPOKE_LOCAL_TEST`;
   Hoenn-Expeditionen mit Schrittzielen, siehe `HOENN_WALK_LOCAL.md`)
-- Öffentlicher Gen-3-Release: `1.36.1` (über
+- Öffentlicher Gen-3-Release: `1.36.2` (über
   `TAMAPOKE_GEN3_RELEASE`, ohne lokale Debugbefehle)
 - Board: ESP32-S3, 16 MB Flash, OPI PSRAM, rundes 466x466 AMOLED, CST9217 Touch,
   PCF85063 RTC, AXP2101 PMU, ES8311 Audio
@@ -39,7 +39,7 @@ erwünscht.
 - Branch `local/full-gen3`; Tag `local-before-gen3` erlaubt die schnelle
   Rückkehr zum funktionierenden Gen-2-Stand. Der getestete Gen-3-Featurestand
   `da8bfa8` liegt bereits auf `fork/main`. Der gehostete Installer und der
-  GitHub-Release verwenden den debugfreien Gen-3-Stand `1.36.1`.
+  GitHub-Release verwenden den debugfreien Gen-3-Stand `1.36.2`.
 - Lokaler Dex #1–386 mit sechs Sprachen, uint16-Dexpfaden, Gen-3-Stats/Typen,
   Evolutionsregeln und dem 3-von-4-Stats-Gate über 40 Prozent.
 - Lokaler Erststart: Region Kanto/Johto/Hoenn wählen, danach einen von drei
@@ -67,7 +67,7 @@ erwünscht.
 
 ## Aktueller Arbeitsbaum
 
-Der öffentliche Installer zeigt auf den debugfreien Gen-3-Build `1.36.1`.
+Der öffentliche Installer zeigt auf den debugfreien Gen-3-Build `1.36.2`.
 Für Hardwaretests existieren weiterhin `web/dev.html` und
 `web/manifest-local.json`; diese Debug-Dateien sind bewusst nicht Teil des
 öffentlichen Installationsflusses.
@@ -75,7 +75,7 @@ Für Hardwaretests existieren weiterhin `web/dev.html` und
 Aktuelle lokale Testguards in `TamaPoke.ino`:
 
 - `TAMAPOKE_LOCAL_TEST` setzt die Anzeigeversion auf `1.36.2-hoenn-walk-local`.
-- `TAMAPOKE_GEN3_RELEASE` setzt die Anzeigeversion auf `1.36.1` und erlaubt den
+- `TAMAPOKE_GEN3_RELEASE` setzt die Anzeigeversion auf `1.36.2` und erlaubt den
   386er-Dex, schaltet aber keine Debugbefehle frei.
 - Die Serial-Befehle `TESTMON`, `TESTEVO`, `CAUGHT`, `CAUGHT <dex>`, `BATTLE`
   und `BATTLE <dex>` sind nur in diesem Testbuild aktiv.
@@ -218,7 +218,7 @@ werden; Desktop-Builds können den ES8311-/Lautsprecherweg nicht ersetzen.
 Die folgenden Einträge dokumentieren den damaligen Entwicklungsstand. Nicht
 jede Testversion wurde veröffentlicht; Angaben zu früheren Branches sind keine
 Beschreibung des aktuellen Arbeitsbaums. `1.36.2-hoenn-walk-local` ist der
-aktuelle lokale Debugstand; `1.36.1` ist der veröffentlichte debugfreie Gen-3-Release.
+aktuelle lokale Debugstand; `1.36.2` ist der veröffentlichte debugfreie Gen-3-Release.
 
 1. `1.29.3-reliability`
    - Reset von Interaktions-/Evolution-/Farewell-Sperren bei neuem Pet.
@@ -299,11 +299,11 @@ aktuelle lokale Debugstand; `1.36.1` ist der veröffentlichte debugfreie Gen-3-R
 15. `1.36.1` (öffentlich)
    - Vollständiges Save-Backup/Restore per USB im Browser mit automatischem
      Sicherheits-Backup (Commit `release: publish save backup update v1.36.1`).
-   - Aktueller Stand des öffentlichen Installers (`web/index.html`).
-16. `1.36.2-hoenn-walk-local` (nur lokal)
+   - Zuvor öffentlicher Stand des Installers (`web/index.html`).
+16. `1.36.2` (öffentlich) / `1.36.2-hoenn-walk-local` (Debug)
    - Hoenn-Expeditionsorte und Schrittziele 250/500/1.000 für 15/30/60 Minuten
      mit optionalem Zusatz-Item; Save-Backup Version 2 enthält den Lauffortschritt.
-   - Nicht veröffentlicht; laut Besitzer (Stand 2026-11-06) seit Wochen im Hardware-Dauerbetrieb
+   - Debug-Variante bleibt lokal; die Funktionen sind im öffentlichen `1.36.2` enthalten. Laut Besitzer (Stand 2026-11-06) seit Wochen im Hardware-Dauerbetrieb
      ohne Auffälligkeiten (`HOENN_WALK_LOCAL.md`).
 
 ## Architektur und wichtige Dateien
@@ -325,7 +325,7 @@ aktuelle lokale Debugstand; `1.36.1` ist der veröffentlichte debugfreie Gen-3-R
 - `tools/build_web.sh`: erzeugt die vier separaten öffentlichen Gen-3-
   Installer-Binaries.
 - `tools/build_web_gen3.sh`: erzeugt und validiert den debugfreien
-  `1.36.1`-Release ohne den lokalen Debugbuild zu verwenden.
+  `1.36.2`-Release ohne den lokalen Debugbuild zu verwenden.
 - `web/manifest.json` und `web/index.html`: Web-Installer. Die Parts werden
   getrennt geflasht, damit NVS/Save bei Updates erhalten bleibt.
 - `web/dev.html` und `web/manifest-local.json`: lokaler Testinstaller, nicht für
@@ -346,7 +346,7 @@ python3 -m http.server 8000 --directory web
 Danach auf dem Mac Chrome oder Edge öffnen:
 
 ```text
-http://127.0.0.1:8000/?v=1.36.1
+http://127.0.0.1:8000/?v=1.36.2
 ```
 
 Waveshare per USB verbinden und im Installer **Erase device deaktiviert lassen**.
@@ -354,10 +354,10 @@ Der lokale Server muss während des Flashens weiterlaufen. Der aktuelle
 Web-Installer erwartet diese vier Dateien:
 
 ```text
-web/firmware/tamapoke-1.36.1-bootloader.bin
-web/firmware/tamapoke-1.36.1-partitions.bin
-web/firmware/tamapoke-1.36.1-boot_app0.bin
-web/firmware/tamapoke-1.36.1-app.bin
+web/firmware/tamapoke-1.36.2-bootloader.bin
+web/firmware/tamapoke-1.36.2-partitions.bin
+web/firmware/tamapoke-1.36.2-boot_app0.bin
+web/firmware/tamapoke-1.36.2-app.bin
 ```
 
 ### Lokaler Testinstaller

@@ -6,7 +6,7 @@ End users currently use:
 
 <https://shadowenemyx.github.io/TamaPoke/web/>
 
-`index.html` and `manifest.json` serve the public Gen‑3 release `1.36.1` with
+`index.html` and `manifest.json` serve the public Gen‑3 release `1.36.2` with
 Pokémon #1–386. They expose no debug controls and require the complete two-step
 firmware-plus-sprites installation.
 
@@ -16,7 +16,7 @@ firmware-plus-sprites installation.
   `TAMAPOKE_LOCAL_TEST`. It includes click-driven Pokémon, evolution, battle,
   IMU and step diagnostics.
 - `release-gen3.html` + `manifest-gen3.json`: local reference copy of the same
-  public-style `1.36.1` page, compiled with `TAMAPOKE_GEN3_RELEASE`.
+  public-style `1.36.2` page, compiled with `TAMAPOKE_GEN3_RELEASE`.
 
 The release preview deliberately exposes only one sprite action. It transfers
 `sprites.pak` and then `sprites-gen3-update.pak`, giving every user the complete

@@ -719,9 +719,15 @@ void Pet::hatch() {
 
 // Los niveles y condiciones de evolucion viven en EVOLUTION_RULES para poder
 // representar ramas y evoluciones de amistad/RTC sin romper partidas antiguas.
-static bool evolutionRuleReady(const Pet &pet, const EvolutionRule &rule) {
+static uint8_t evolutionNeedLevel(const Pet &pet, const EvolutionRule &rule) {
   uint16_t need = (uint16_t)rule.minLevel + pet.careMistakes;
-  if (need > 100 || pet.level() < (uint8_t)need) return false;
+  if (need > 100) need = 100;
+  return (uint8_t)need;
+}
+
+static bool evolutionRuleReady(const Pet &pet, const EvolutionRule &rule) {
+  uint8_t need = evolutionNeedLevel(pet, rule);
+  if (pet.level() < need) return false;
   switch (rule.condition) {
     case EVO_BOND:
       return pet.bond >= 50;
@@ -781,7 +787,7 @@ uint8_t Pet::evolutionRequiredLevel() const {
   for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
     const EvolutionRule &rule = EVOLUTION_RULES[i];
     if (rule.from != speciesId) continue;
-    uint16_t need = (uint16_t)rule.minLevel + careMistakes;
+    uint16_t need = evolutionNeedLevel(*this, rule);
     if (need < best) best = need;
   }
   return best > 100 ? 100 : (uint8_t)best;
@@ -805,6 +811,29 @@ bool Pet::evolutionUnlocked() const {
   return evolutionOptionCount() > 0;
 }
 
+bool Pet::evolutionLevelReached() const {
+  if (isEgg() || ceremony != CER_NONE || speciesId < 1 || speciesId > DEX_COUNT) return false;
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId) continue;
+    if (level() >= evolutionNeedLevel(*this, rule)) return true;
+  }
+  return false;
+}
+
+bool Pet::evolutionNeedsMoreBond() const {
+  if (bond >= 50 || isEgg() || ceremony != CER_NONE) return false;
+  for (uint16_t i = 0; i < EVOLUTION_RULE_COUNT; i++) {
+    const EvolutionRule &rule = EVOLUTION_RULES[i];
+    if (rule.from != speciesId) continue;
+    if (level() < evolutionNeedLevel(*this, rule)) continue;
+    if (rule.condition == EVO_BOND || rule.condition == EVO_DAY_BOND ||
+        rule.condition == EVO_NIGHT_BOND)
+      return true;
+  }
+  return false;
+}
+
 bool Pet::canEvolveTo(int16_t target) const {
   if (!canEvolveNow() || target < 1 || target > DEX_COUNT) return false;
   for (uint8_t i = 0; i < evolutionOptionCount(); i++)
@@ -817,7 +846,7 @@ bool Pet::canEvolveNow() const {
 }
 
 bool Pet::wantEvolveButton() const {
-  if (sleeping || !evolutionUnlocked()) return false;
+  if (sleeping || !hasEvolutionPath(speciesId) || !evolutionLevelReached()) return false;
   if (level() >= 100) return ageMinutes >= evoDeclinedAge;
   return level() > evoDeclinedLv;
 }

@@ -258,6 +258,8 @@ public:
     return 1.0f - (float)left / (float)EVOLVE_ANIM_MS;
   }
   bool evolutionUnlocked() const;  // nivel/condicion: al menos una forma disponible
+  bool evolutionLevelReached() const;  // nivel alcanzado, aunque falte vinculo/hora
+  bool evolutionNeedsMoreBond() const;  // hay regla lista de nivel, pero bond < 50
   bool canEvolveNow() const;  // lista: unlocked + wach + 3 de 4 valores > 40
   uint8_t evolutionOptionCount() const;
   int16_t evolutionOption(uint8_t index) const;

@@ -1411,7 +1411,8 @@ void onTap(int16_t x, int16_t y) {
     if (pet.canEvolveNow()) {
       choiceKind = 1; choiceUntil = millis() + 12000;
     } else {
-      snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(S_EVO_BLOCKED));
+      StrId blocked = pet.evolutionNeedsMoreBond() ? S_EVO_NEED_BOND : S_EVO_BLOCKED;
+      snprintf(petEventMsg, sizeof(petEventMsg), "%s", T(blocked));
       petEventFeedbackUntil = millis() + 1800;
       sfxPlay(SFX_DENY);
     }
@@ -4444,7 +4445,7 @@ void renderCardProgress() {
       if (pet.canEvolveNow()) { evo = T(S_EVO_READY); evoCol = UI_BAR_OK; }
       else { evo = T(S_EVO_BLOCKED); evoCol = UI_BAR_BAD; }
     } else if (pet.level() >= needed) {
-      evo = T(S_EVO_BLOCKED);
+      evo = T(pet.evolutionNeedsMoreBond() ? S_EVO_NEED_BOND : S_EVO_BLOCKED);
       evoCol = UI_BAR_BAD;
     } else {
       snprintf(evoBuf, sizeof(evoBuf), T(S_EVO_IN_FMT), needed - pet.level());

@@ -120,6 +120,26 @@ static void testEvolveOfferStaysWhenStatsDipAndReoffersAtCap() {
   EXPECT_TRUE(pet.wantEvolveButton());
 }
 
+static void testGolbatShowsEvolveCtaWithoutBond() {
+  Pet pet = hatchedPet(42);  // Golbat -> Crobat via bond
+  pet.fullness = pet.joy = pet.energy = pet.hygiene = 80;
+  pet.bond = 10;
+  pet.ageMinutes = 99UL * MINUTES_PER_LEVEL;  // Lv.100
+
+  EXPECT_TRUE(pet.hasEvolutionPath(42));
+  EXPECT_TRUE(pet.evolutionLevelReached());
+  EXPECT_TRUE(pet.wantEvolveButton());
+  EXPECT_TRUE(pet.evolutionNeedsMoreBond());
+  EXPECT_TRUE(!pet.evolutionUnlocked());
+  EXPECT_TRUE(!pet.canEvolveNow());
+  EXPECT_TRUE(!pet.canFarewellNow());
+
+  pet.bond = 50;
+  EXPECT_TRUE(!pet.evolutionNeedsMoreBond());
+  EXPECT_TRUE(pet.evolutionUnlocked());
+  EXPECT_TRUE(pet.canEvolveNow());
+}
+
 static void testCareMistakeDelaysEvolution() {
   Pet pet = hatchedPet(4);
   pet.ageMinutes = 15 * MINUTES_PER_LEVEL;
@@ -1195,6 +1215,7 @@ int main() {
   testBattleStatsUseBaseGenesLevelAndTraining();
   testEvolutionRequiresLevelAndHealthyStats();
   testEvolveOfferStaysWhenStatsDipAndReoffersAtCap();
+  testGolbatShowsEvolveCtaWithoutBond();
   testCareMistakeDelaysEvolution();
   testTrainingRewardsClampAndAffectNeeds();
   testCatchRewardTrainsSpeedAndRecord();
